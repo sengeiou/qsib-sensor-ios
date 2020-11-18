@@ -13,6 +13,8 @@
 		068E70722565AC2F00673E32 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 068E70702565AC2F00673E32 /* Main.storyboard */; };
 		068E70742565AC3200673E32 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 068E70732565AC3200673E32 /* Assets.xcassets */; };
 		068E70772565AC3200673E32 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 068E70752565AC3200673E32 /* LaunchScreen.storyboard */; };
+		068E70862565AE2300673E32 /* libqsib_sensor_rs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 068E70852565AE1200673E32 /* libqsib_sensor_rs.a */; };
+		068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E70872565AE4200673E32 /* QsibSensorLib.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +26,11 @@
 		068E70732565AC3200673E32 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		068E70762565AC3200673E32 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		068E70782565AC3200673E32 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		068E70822565AC6800673E32 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
+		068E70832565AC8A00673E32 /* greetings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = greetings.h; path = "../../../qsib-sensor-lib-rs/src/greetings.h"; sourceTree = "<group>"; };
+		068E70842565ACAC00673E32 /* QsibSensor-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "QsibSensor-Bridging-Header.h"; sourceTree = "<group>"; };
+		068E70852565AE1200673E32 /* libqsib_sensor_rs.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libqsib_sensor_rs.a; path = "../../qsib-sensor-lib-rs/target/universal/release/libqsib_sensor_rs.a"; sourceTree = "<group>"; };
+		068E70872565AE4200673E32 /* QsibSensorLib.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibSensorLib.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -31,6 +38,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				068E70862565AE2300673E32 /* libqsib_sensor_rs.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -42,6 +50,7 @@
 			children = (
 				068E70692565AC2F00673E32 /* QsibSensor */,
 				068E70682565AC2F00673E32 /* Products */,
+				068E70812565AC6800673E32 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -56,6 +65,7 @@
 		068E70692565AC2F00673E32 /* QsibSensor */ = {
 			isa = PBXGroup;
 			children = (
+				068E70832565AC8A00673E32 /* greetings.h */,
 				068E706A2565AC2F00673E32 /* AppDelegate.swift */,
 				068E706C2565AC2F00673E32 /* SceneDelegate.swift */,
 				068E706E2565AC2F00673E32 /* ViewController.swift */,
@@ -63,8 +73,19 @@
 				068E70732565AC3200673E32 /* Assets.xcassets */,
 				068E70752565AC3200673E32 /* LaunchScreen.storyboard */,
 				068E70782565AC3200673E32 /* Info.plist */,
+				068E70842565ACAC00673E32 /* QsibSensor-Bridging-Header.h */,
+				068E70872565AE4200673E32 /* QsibSensorLib.swift */,
 			);
 			path = QsibSensor;
+			sourceTree = "<group>";
+		};
+		068E70812565AC6800673E32 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				068E70852565AE1200673E32 /* libqsib_sensor_rs.a */,
+				068E70822565AC6800673E32 /* libresolv.tbd */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -139,6 +160,7 @@
 			files = (
 				068E706F2565AC2F00673E32 /* ViewController.swift in Sources */,
 				068E706B2565AC2F00673E32 /* AppDelegate.swift in Sources */,
+				068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */,
 				068E706D2565AC2F00673E32 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -293,8 +315,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../qsib-sensor-lib-rs/target/universal/release";
 				PRODUCT_BUNDLE_IDENTIFIER = com.qsib.QsibSensor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/QsibSensor/QsibSensor-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -312,8 +336,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../qsib-sensor-lib-rs/target/universal/release";
 				PRODUCT_BUNDLE_IDENTIFIER = com.qsib.QsibSensor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/QsibSensor/QsibSensor-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
