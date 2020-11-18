@@ -15,6 +15,7 @@
 		068E70772565AC3200673E32 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 068E70752565AC3200673E32 /* LaunchScreen.storyboard */; };
 		068E70862565AE2300673E32 /* libqsib_sensor_rs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 068E70852565AE1200673E32 /* libqsib_sensor_rs.a */; };
 		068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E70872565AE4200673E32 /* QsibSensorLib.swift */; };
+		068E708C2565BD2E00673E32 /* DevicesTableVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E708B2565BD2E00673E32 /* DevicesTableVC.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		068E70842565ACAC00673E32 /* QsibSensor-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "QsibSensor-Bridging-Header.h"; sourceTree = "<group>"; };
 		068E70852565AE1200673E32 /* libqsib_sensor_rs.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libqsib_sensor_rs.a; path = "../../qsib-sensor-lib-rs/target/universal/release/libqsib_sensor_rs.a"; sourceTree = "<group>"; };
 		068E70872565AE4200673E32 /* QsibSensorLib.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibSensorLib.swift; sourceTree = "<group>"; };
+		068E708B2565BD2E00673E32 /* DevicesTableVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicesTableVC.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +77,7 @@
 				068E70782565AC3200673E32 /* Info.plist */,
 				068E70842565ACAC00673E32 /* QsibSensor-Bridging-Header.h */,
 				068E70872565AE4200673E32 /* QsibSensorLib.swift */,
+				068E708B2565BD2E00673E32 /* DevicesTableVC.swift */,
 			);
 			path = QsibSensor;
 			sourceTree = "<group>";
@@ -159,6 +162,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				068E706F2565AC2F00673E32 /* ViewController.swift in Sources */,
+				068E708C2565BD2E00673E32 /* DevicesTableVC.swift in Sources */,
 				068E706B2565AC2F00673E32 /* AppDelegate.swift in Sources */,
 				068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */,
 				068E706D2565AC2F00673E32 /* SceneDelegate.swift in Sources */,
