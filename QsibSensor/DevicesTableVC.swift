@@ -21,11 +21,21 @@ class AdvertisementTableViewCell: UITableViewCell {
     @IBOutlet weak var connectButton: UIButton!
     
     var peripheral: QSPeripheral? = nil
+    var viewController: DevicesTableVC!
     
     @IBAction func handleClick(_ sender: Any) {
-        ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Connecting to \(self.peripheral!.name!) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
-        
-        ACTION_DISPATCH(action: RequestConnect(peripheral: self.peripheral!.cbp))
+        switch self.peripheral?.cbp.state {
+        case .connected, .connecting:
+            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Discnnecting from \(self.peripheral!.name!) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
+            
+            ACTION_DISPATCH(action: RequestDisconnect(peripheral: self.peripheral!.cbp))
+        default:
+            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Connecting to \(self.peripheral!.name!) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
+            
+            ACTION_DISPATCH(action: RequestConnect(peripheral: self.peripheral!.cbp))
+            
+            viewController.performSegue(withIdentifier: "drillDownDeviceSeque", sender: viewController)
+        }
     }
     
     public func updateContent(forPeripheral newPeripheral: QSPeripheral) {
@@ -37,19 +47,23 @@ class AdvertisementTableViewCell: UITableViewCell {
             rssiLabelText = "RSSI: \(rssi) dBm"
             tintColor = rssi > -70 ? .systemBlue : .systemYellow
         }
+        
+        var connectButtonText = "Connect"
+        var connectButtonColor = UIColor.systemTeal
         switch newPeripheral.cbp.state {
-        case .connected:
+        case .connected, .connecting:
             tintColor = .systemGreen
             rssiLabelText = "RSSI: --- dBm"
-        case .connecting:
-            tintColor = .systemGreen
-            rssiLabelText = "RSSI: --- dBm"
+            connectButtonText = "Disconnect"
+            connectButtonColor = .systemOrange
         default:
             break
         }
         self.signalImage.tintColor = tintColor
         self.rssiLabel.text = rssiLabelText
         self.connectButton.setTitleColor(.systemGray, for: .highlighted)
+        self.connectButton.titleLabel?.text = connectButtonText
+        self.connectButton.tintColor = connectButtonColor
     }
 }
 
@@ -126,6 +140,7 @@ class DevicesTableVC: UITableViewController, StoreSubscriber {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "custom_cell0", for: indexPath)
         let advertisementCell = cell as! AdvertisementTableViewCell
+        advertisementCell.viewController = self
         advertisementCell.updateContent(forPeripheral: peripherals[indexPath.row])
         return cell
     }

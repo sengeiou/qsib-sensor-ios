@@ -1,5 +1,5 @@
 //
-//  ViewController.swift
+//  MainViewController.swift
 //  QsibSensor
 //
 //  Created by Jacob Trueb on 11/18/20.
@@ -9,7 +9,7 @@ import UIKit
 import ReSwift
 import Toast
 
-class ViewController: UIViewController, StoreSubscriber {
+class MainViewController: UIViewController, StoreSubscriber {
     
     var previousToast: UUID? = nil
 

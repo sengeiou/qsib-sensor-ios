@@ -11,26 +11,27 @@ import Foundation
 import Toast
 import ReSwift
 
+let BATTERY_SERVICE_UUID = CBUUID(string: "180F")
+let BATTERY_SERVICE_BATTERY_LEVEL_CHARACTERISTIC_UUID = CBUUID(string: "2A19")
+
+let QSIB_SENSOR_SERVICE_UUID = CBUUID(string: "000062c4-b99e-4141-9439-c4f9db977899")
+
+let QSS_CONTROL_UUID = CBUUID(string: "010062c4-b99e-4141-9439-c4f9db977899")
+let QSS_SIGNAL_UUID = CBUUID(string: "020062c4-b99e-4141-9439-c4f9db977899")
+let QSS_FIRMWARE_VERSION_UUID = CBUUID(string: "030062c4-b99e-4141-9439-c4f9db977899")
+let QSS_HARDWARE_VERSION_UUID = CBUUID(string: "040062c4-b99e-4141-9439-c4f9db977899")
+let QSS_ERROR_UUID = CBUUID(string: "050062c4-b99e-4141-9439-c4f9db977899")
+let QSS_NAME_UUID = CBUUID(string: "060062c4-b99e-4141-9439-c4f9db977899")
+let QSS_UUID_UUID = CBUUID(string: "070062c4-b99e-4141-9439-c4f9db977899")
+let QSS_BOOT_COUNT_UUID = CBUUID(string: "080062c4-b99e-4141-9439-c4f9db977899")
+
+
 class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         
     var centralManager: CBCentralManager!
     var isScanning: Bool = false
     var count: Int = 0
     
-    static let BATTERY_SERVICE_UUID = CBUUID(string: "180F")
-    let BATTERY_SERVICE_BATTERY_LEVEL_CHARACTERISTIC_UUID = CBUUID(string: "2A19")
-    
-    static let QSIB_SENSOR_SERVICE_UUID = CBUUID(string: "000062c4-b99e-4141-9439-c4f9db977899")
-
-    let QSS_CONTROL_UUID = CBUUID(string: "010062c4-b99e-4141-9439-c4f9db977899")
-    let QSS_SIGNAL_UUID = CBUUID(string: "020062c4-b99e-4141-9439-c4f9db977899")
-    let QSS_FIRMWARE_VERSION_UUID = CBUUID(string: "030062c4-b99e-4141-9439-c4f9db977899")
-    let QSS_HARDWARE_VERSION_UUID = CBUUID(string: "040062c4-b99e-4141-9439-c4f9db977899")
-    let QSS_ERROR_UUID = CBUUID(string: "050062c4-b99e-4141-9439-c4f9db977899")
-    let QSS_NAME_UUID = CBUUID(string: "060062c4-b99e-4141-9439-c4f9db977899")
-    let QSS_UUID_UUID = CBUUID(string: "070062c4-b99e-4141-9439-c4f9db977899")
-    let QSS_BOOT_COUNT_UUID = CBUUID(string: "080062c4-b99e-4141-9439-c4f9db977899")
-
 //    let CENTRAL_MANAGER_IDENTIFIER = "CENTRAL_MANAGER_IDENTIFIER"
     let CENTRAL_MANAGER_IDENTIFIER: String? = nil
 
@@ -61,7 +62,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         case .poweredOn:
             LOGGER.info("CoreBluetooth CentralManager State = poweredOn")
             LOGGER.info("Beginning scan for QSIB Sensor ...")
-            centralManager.scanForPeripherals(withServices: [AppBluetoothDelegate.QSIB_SENSOR_SERVICE_UUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
+            centralManager.scanForPeripherals(withServices: [QSIB_SENSOR_SERVICE_UUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
             isScanning = true
         default:
             LOGGER.info("CBCM UNEXPECTED UNHANDLED MANAGER STATE: \(central.state.rawValue)")
@@ -80,7 +81,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         LOGGER.debug("didConnect peripheral: \(peripheral)")
                 
         ACTION_DISPATCH(action: DidConnect(peripheral: peripheral))
-        peripheral.discoverServices([AppBluetoothDelegate.QSIB_SENSOR_SERVICE_UUID, AppBluetoothDelegate.BATTERY_SERVICE_UUID])
+        peripheral.discoverServices([QSIB_SENSOR_SERVICE_UUID, BATTERY_SERVICE_UUID])
         count = 0
     }
     
@@ -101,11 +102,11 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         LOGGER.debug("Discovered services \(peripheral.services!) with error: \(String(describing: error))")
         for service in peripheral.services! {
-            if service.uuid == AppBluetoothDelegate.BATTERY_SERVICE_UUID {
-                LOGGER.debug("Discovering services for BATTERY_SERVICE_UUID: \(AppBluetoothDelegate.BATTERY_SERVICE_UUID)")
+            if service.uuid == BATTERY_SERVICE_UUID {
+                LOGGER.debug("Discovering services for BATTERY_SERVICE_UUID: \(BATTERY_SERVICE_UUID)")
                 peripheral.discoverCharacteristics(nil, for: service)
-            } else if service.uuid == AppBluetoothDelegate.QSIB_SENSOR_SERVICE_UUID {
-                LOGGER.debug("Discovering services for QSIB_SENSOR_SERVICE_UUID: \(AppBluetoothDelegate.QSIB_SENSOR_SERVICE_UUID)")
+            } else if service.uuid == QSIB_SENSOR_SERVICE_UUID {
+                LOGGER.debug("Discovering services for QSIB_SENSOR_SERVICE_UUID: \(QSIB_SENSOR_SERVICE_UUID)")
                 peripheral.discoverCharacteristics(nil, for: service)
             }
         }
@@ -117,7 +118,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         }
         
         LOGGER.debug("Discovered characteristics \(service.characteristics!) for \(service)")
-        if service.uuid == AppBluetoothDelegate.BATTERY_SERVICE_UUID {
+        if service.uuid == BATTERY_SERVICE_UUID {
             for characteristic in service.characteristics! {
                 if characteristic.uuid == BATTERY_SERVICE_BATTERY_LEVEL_CHARACTERISTIC_UUID {
                     // Battery Level
@@ -125,8 +126,9 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
                     peripheral.setNotifyValue(true, for: characteristic)
                 }
             }
-        } else if service.uuid == AppBluetoothDelegate.QSIB_SENSOR_SERVICE_UUID {
+        } else if service.uuid == QSIB_SENSOR_SERVICE_UUID {
             for characteristic in service.characteristics! {
+                ACTION_DISPATCH(action: DidDiscoverCharacteristic(peripheral: peripheral, characteristic: characteristic))
                 switch characteristic.uuid {
                 case QSS_CONTROL_UUID:
                     LOGGER.trace("Discovered QSS_CONTROL_UUID: \(QSS_CONTROL_UUID)")
@@ -167,6 +169,11 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         LOGGER.trace("Wrote value for characteristic: \(characteristic) with error: \(String(describing: error))")
+        if let error = error {
+            LOGGER.error("Encountered error writing to characteristic: \(error)")
+        } else {
+            peripheral.readValue(for: characteristic)
+        }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
@@ -180,17 +187,36 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             LOGGER.trace("Updated QSS_SIGNAL_UUID: \(QSS_SIGNAL_UUID) for the \(count)th time :: \(characteristic.value!)")
             count += 1
         case QSS_FIRMWARE_VERSION_UUID:
-            LOGGER.trace("Updated QSS_FIRMWARE_VERSION_UUID: \(QSS_FIRMWARE_VERSION_UUID) :: \(String(describing: String(data: characteristic.value!, encoding: .utf8)))")
+            let firmwareVersion = String(data: characteristic.value!, encoding: .utf8) ?? "invalid"
+            LOGGER.trace("Updated QSS_FIRMWARE_VERSION_UUID: \(QSS_FIRMWARE_VERSION_UUID) :: \(firmwareVersion)")
+            ACTION_DISPATCH(action: DidUpdateValueForFirmwareVersion(peripheral: peripheral, value: firmwareVersion))
         case QSS_HARDWARE_VERSION_UUID:
-            LOGGER.trace("Updated QSS_HARDWARE_VERSION_UUID: \(QSS_HARDWARE_VERSION_UUID) :: \(String(describing: String(data: characteristic.value!, encoding: .utf8)))")
+            let hardwareVersion = String(data: characteristic.value!, encoding: .utf8) ?? "invalid"
+            LOGGER.trace("Updated QSS_HARDWARE_VERSION_UUID: \(QSS_HARDWARE_VERSION_UUID) :: \(hardwareVersion)")
+            ACTION_DISPATCH(action: DidUpdateValueForHardwareVersion(peripheral: peripheral, value: hardwareVersion))
         case QSS_ERROR_UUID:
-            LOGGER.trace("Updated QSS_ERROR_UUID: \(QSS_ERROR_UUID) :: \(String(describing: String(data: characteristic.value!, encoding: .utf8)))")
+            let error = String(data: characteristic.value!, encoding: .utf8) ?? "invalid"
+            LOGGER.trace("Updated QSS_ERROR_UUID: \(QSS_ERROR_UUID) :: \(error)")
+            ACTION_DISPATCH(action: DidUpdateValueForError(peripheral: peripheral, value: error))
         case QSS_NAME_UUID:
-            LOGGER.trace("Updated QSS_NAME_UUID: \(QSS_NAME_UUID) :: \(String(describing: String(data: characteristic.value!, encoding: .utf8)))")
+            let name = String(data: characteristic.value!, encoding: .utf8) ?? "invalid"
+            LOGGER.trace("Updated QSS_NAME_UUID: \(QSS_NAME_UUID) :: \(name)")
+            ACTION_DISPATCH(action: DidUpdateValueForName(peripheral: peripheral, value: name))
         case QSS_UUID_UUID:
-            LOGGER.trace("Updated QSS_UUID_UUID: \(QSS_UUID_UUID) :: \(String(describing: String(data: characteristic.value!, encoding: .utf8)))")
+            let uniqueIdentifier = String(data: characteristic.value!, encoding: .utf8) ?? "invalid"
+            LOGGER.trace("Updated QSS_UUID_UUID: \(QSS_UUID_UUID) :: \(uniqueIdentifier)")
+            ACTION_DISPATCH(action: DidUpdateValueForUniqueIdentifier(peripheral: peripheral, value: uniqueIdentifier))
         case QSS_BOOT_COUNT_UUID:
-            LOGGER.trace("Updated QSS_BOOT_COUNT_UUID: \(QSS_BOOT_COUNT_UUID) :: \(characteristic.value!.hexEncodedString())")
+            var beforeOrderBootCount: UInt32 = 0
+            if let data = characteristic.value {
+                beforeOrderBootCount = data.withUnsafeBytes {
+                    $0.load(as: UInt32.self)
+                }
+            }
+//            let bootCount = Int(CFSwapInt32(beforeOrderBootCount))
+            let bootCount = Int(beforeOrderBootCount)
+            LOGGER.trace("Updated QSS_BOOT_COUNT_UUID: \(QSS_BOOT_COUNT_UUID) :: \(bootCount)")
+            ACTION_DISPATCH(action: DidUpdateValueForBootCount(peripheral: peripheral, value: bootCount))
         default:
             LOGGER.warning("Updated unexpected characteristic: \(characteristic)")
         }

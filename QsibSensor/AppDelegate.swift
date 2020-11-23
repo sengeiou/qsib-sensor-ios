@@ -36,7 +36,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Disable Constraint
-        // UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
+        UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
         
         LOGGER.logLevel = .trace
         FORMATTER.calendar = Calendar(identifier: .iso8601)
@@ -144,5 +144,30 @@ extension Data {
     func hexEncodedString(options: HexEncodingOptions = []) -> String {
         let format = options.contains(.upperCase) ? "%02hhX" : "%02hhx"
         return map { String(format: format, $0) }.joined()
+    }
+}
+
+extension String {
+    enum ExtendedEncoding {
+        case hexadecimal
+    }
+
+    func data(using encoding:ExtendedEncoding) -> Data? {
+        let hexStr = self.dropFirst(self.hasPrefix("0x") ? 2 : 0)
+
+        guard hexStr.count % 2 == 0 else { return nil }
+
+        var newData = Data(capacity: hexStr.count/2)
+
+        var indexIsEven = true
+        for i in hexStr.indices {
+            if indexIsEven {
+                let byteRange = i...hexStr.index(after: i)
+                guard let byte = UInt8(hexStr[byteRange], radix: 16) else { return nil }
+                newData.append(byte)
+            }
+            indexIsEven.toggle()
+        }
+        return newData
     }
 }
