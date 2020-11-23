@@ -3,10 +3,14 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 52;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		06153A9025682C4000889A21 /* Toast in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A8F25682C4000889A21 /* Toast */; };
+		06153A9425682C6D00889A21 /* ReSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A9325682C6D00889A21 /* ReSwift */; };
+		06153A9825682C9100889A21 /* Charts in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A9725682C9100889A21 /* Charts */; };
+		06153A9F25682D3300889A21 /* AsyncHTTPClient in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A9E25682D3300889A21 /* AsyncHTTPClient */; };
 		068E706B2565AC2F00673E32 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E706A2565AC2F00673E32 /* AppDelegate.swift */; };
 		068E706D2565AC2F00673E32 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E706C2565AC2F00673E32 /* SceneDelegate.swift */; };
 		068E706F2565AC2F00673E32 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E706E2565AC2F00673E32 /* ViewController.swift */; };
@@ -16,6 +20,17 @@
 		068E70862565AE2300673E32 /* libqsib_sensor_rs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 068E70852565AE1200673E32 /* libqsib_sensor_rs.a */; };
 		068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E70872565AE4200673E32 /* QsibSensorLib.swift */; };
 		068E708C2565BD2E00673E32 /* DevicesTableVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E708B2565BD2E00673E32 /* DevicesTableVC.swift */; };
+		06A86AAB256830BC00B30115 /* AppBluetoothDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */; };
+		06A86AAF2568312100B30115 /* NIOTLS in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86AAE2568312100B30115 /* NIOTLS */; };
+		06A86AB12568312100B30115 /* NIOWebSocket in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86AB02568312100B30115 /* NIOWebSocket */; };
+		06A86AB32568312100B30115 /* _NIO1APIShims in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86AB22568312100B30115 /* _NIO1APIShims */; };
+		06A86AB52568312100B30115 /* NIOFoundationCompat in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86AB42568312100B30115 /* NIOFoundationCompat */; };
+		06A86AB72568312100B30115 /* NIOHTTP1 in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86AB62568312100B30115 /* NIOHTTP1 */; };
+		06A86AB92568312100B30115 /* NIOConcurrencyHelpers in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86AB82568312100B30115 /* NIOConcurrencyHelpers */; };
+		06A86ABB2568312100B30115 /* NIOTestUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86ABA2568312100B30115 /* NIOTestUtils */; };
+		06A86ABD2568312100B30115 /* NIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86ABC2568312100B30115 /* NIO */; };
+		06A8B533256833BD00880CE8 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A8B532256833BD00880CE8 /* AppStore.swift */; };
+		06DC88EE256C1B70006A2B97 /* QSPeripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +48,10 @@
 		068E70852565AE1200673E32 /* libqsib_sensor_rs.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libqsib_sensor_rs.a; path = "../../qsib-sensor-lib-rs/target/universal/release/libqsib_sensor_rs.a"; sourceTree = "<group>"; };
 		068E70872565AE4200673E32 /* QsibSensorLib.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibSensorLib.swift; sourceTree = "<group>"; };
 		068E708B2565BD2E00673E32 /* DevicesTableVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicesTableVC.swift; sourceTree = "<group>"; };
+		06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBluetoothDelegate.swift; sourceTree = "<group>"; };
+		06A8B5302568339D00880CE8 /* QsibSensor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QsibSensor.entitlements; sourceTree = "<group>"; };
+		06A8B532256833BD00880CE8 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QSPeripheral.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -40,7 +59,19 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				06A86ABD2568312100B30115 /* NIO in Frameworks */,
+				06A86AB12568312100B30115 /* NIOWebSocket in Frameworks */,
+				06A86AB52568312100B30115 /* NIOFoundationCompat in Frameworks */,
+				06A86AB32568312100B30115 /* _NIO1APIShims in Frameworks */,
+				06A86AB72568312100B30115 /* NIOHTTP1 in Frameworks */,
+				06A86AB92568312100B30115 /* NIOConcurrencyHelpers in Frameworks */,
+				06153A9425682C6D00889A21 /* ReSwift in Frameworks */,
+				06153A9F25682D3300889A21 /* AsyncHTTPClient in Frameworks */,
+				06153A9025682C4000889A21 /* Toast in Frameworks */,
 				068E70862565AE2300673E32 /* libqsib_sensor_rs.a in Frameworks */,
+				06153A9825682C9100889A21 /* Charts in Frameworks */,
+				06A86AAF2568312100B30115 /* NIOTLS in Frameworks */,
+				06A86ABB2568312100B30115 /* NIOTestUtils in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +98,7 @@
 		068E70692565AC2F00673E32 /* QsibSensor */ = {
 			isa = PBXGroup;
 			children = (
+				06A8B5302568339D00880CE8 /* QsibSensor.entitlements */,
 				068E70832565AC8A00673E32 /* greetings.h */,
 				068E706A2565AC2F00673E32 /* AppDelegate.swift */,
 				068E706C2565AC2F00673E32 /* SceneDelegate.swift */,
@@ -78,6 +110,9 @@
 				068E70842565ACAC00673E32 /* QsibSensor-Bridging-Header.h */,
 				068E70872565AE4200673E32 /* QsibSensorLib.swift */,
 				068E708B2565BD2E00673E32 /* DevicesTableVC.swift */,
+				06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */,
+				06A8B532256833BD00880CE8 /* AppStore.swift */,
+				06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */,
 			);
 			path = QsibSensor;
 			sourceTree = "<group>";
@@ -107,6 +142,20 @@
 			dependencies = (
 			);
 			name = QsibSensor;
+			packageProductDependencies = (
+				06153A8F25682C4000889A21 /* Toast */,
+				06153A9325682C6D00889A21 /* ReSwift */,
+				06153A9725682C9100889A21 /* Charts */,
+				06153A9E25682D3300889A21 /* AsyncHTTPClient */,
+				06A86AAE2568312100B30115 /* NIOTLS */,
+				06A86AB02568312100B30115 /* NIOWebSocket */,
+				06A86AB22568312100B30115 /* _NIO1APIShims */,
+				06A86AB42568312100B30115 /* NIOFoundationCompat */,
+				06A86AB62568312100B30115 /* NIOHTTP1 */,
+				06A86AB82568312100B30115 /* NIOConcurrencyHelpers */,
+				06A86ABA2568312100B30115 /* NIOTestUtils */,
+				06A86ABC2568312100B30115 /* NIO */,
+			);
 			productName = QsibSensor;
 			productReference = 068E70672565AC2F00673E32 /* QsibSensor.app */;
 			productType = "com.apple.product-type.application";
@@ -134,6 +183,13 @@
 				Base,
 			);
 			mainGroup = 068E705E2565AC2F00673E32;
+			packageReferences = (
+				06153A8E25682C4000889A21 /* XCRemoteSwiftPackageReference "Toast-Swift" */,
+				06153A9225682C6D00889A21 /* XCRemoteSwiftPackageReference "ReSwift" */,
+				06153A9625682C9100889A21 /* XCRemoteSwiftPackageReference "Charts" */,
+				06153A9D25682D3300889A21 /* XCRemoteSwiftPackageReference "async-http-client" */,
+				06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */,
+			);
 			productRefGroup = 068E70682565AC2F00673E32 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -166,6 +222,9 @@
 				068E706B2565AC2F00673E32 /* AppDelegate.swift in Sources */,
 				068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */,
 				068E706D2565AC2F00673E32 /* SceneDelegate.swift in Sources */,
+				06DC88EE256C1B70006A2B97 /* QSPeripheral.swift in Sources */,
+				06A8B533256833BD00880CE8 /* AppStore.swift in Sources */,
+				06A86AAB256830BC00B30115 /* AppBluetoothDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -312,6 +371,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = QsibSensor/QsibSensor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = NAMGM3XHJV;
 				INFOPLIST_FILE = QsibSensor/Info.plist;
@@ -322,6 +382,7 @@
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../qsib-sensor-lib-rs/target/universal/release";
 				PRODUCT_BUNDLE_IDENTIFIER = com.qsib.QsibSensor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/QsibSensor/QsibSensor-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -333,6 +394,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = QsibSensor/QsibSensor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = NAMGM3XHJV;
 				INFOPLIST_FILE = QsibSensor/Info.plist;
@@ -343,6 +405,7 @@
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../qsib-sensor-lib-rs/target/universal/release";
 				PRODUCT_BUNDLE_IDENTIFIER = com.qsib.QsibSensor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/QsibSensor/QsibSensor-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -371,6 +434,112 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		06153A8E25682C4000889A21 /* XCRemoteSwiftPackageReference "Toast-Swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/qsib-cbie/Toast-Swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.2;
+			};
+		};
+		06153A9225682C6D00889A21 /* XCRemoteSwiftPackageReference "ReSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ReSwift/ReSwift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.0.0;
+			};
+		};
+		06153A9625682C9100889A21 /* XCRemoteSwiftPackageReference "Charts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/danielgindi/Charts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.5.0;
+			};
+		};
+		06153A9D25682D3300889A21 /* XCRemoteSwiftPackageReference "async-http-client" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swift-server/async-http-client";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.2;
+			};
+		};
+		06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.24.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		06153A8F25682C4000889A21 /* Toast */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06153A8E25682C4000889A21 /* XCRemoteSwiftPackageReference "Toast-Swift" */;
+			productName = Toast;
+		};
+		06153A9325682C6D00889A21 /* ReSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06153A9225682C6D00889A21 /* XCRemoteSwiftPackageReference "ReSwift" */;
+			productName = ReSwift;
+		};
+		06153A9725682C9100889A21 /* Charts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06153A9625682C9100889A21 /* XCRemoteSwiftPackageReference "Charts" */;
+			productName = Charts;
+		};
+		06153A9E25682D3300889A21 /* AsyncHTTPClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06153A9D25682D3300889A21 /* XCRemoteSwiftPackageReference "async-http-client" */;
+			productName = AsyncHTTPClient;
+		};
+		06A86AAE2568312100B30115 /* NIOTLS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOTLS;
+		};
+		06A86AB02568312100B30115 /* NIOWebSocket */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOWebSocket;
+		};
+		06A86AB22568312100B30115 /* _NIO1APIShims */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = _NIO1APIShims;
+		};
+		06A86AB42568312100B30115 /* NIOFoundationCompat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOFoundationCompat;
+		};
+		06A86AB62568312100B30115 /* NIOHTTP1 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOHTTP1;
+		};
+		06A86AB82568312100B30115 /* NIOConcurrencyHelpers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOConcurrencyHelpers;
+		};
+		06A86ABA2568312100B30115 /* NIOTestUtils */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOTestUtils;
+		};
+		06A86ABC2568312100B30115 /* NIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIO;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 068E705F2565AC2F00673E32 /* Project object */;
 }

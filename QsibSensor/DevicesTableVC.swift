@@ -8,6 +8,8 @@
 import Foundation
 import UIKit
 import CoreBluetooth
+import Toast
+import ReSwift
 
 
 class AdvertisementTableViewCell: UITableViewCell {
@@ -18,10 +20,36 @@ class AdvertisementTableViewCell: UITableViewCell {
     @IBOutlet weak var attributeValueLabel: UILabel!
     @IBOutlet weak var connectButton: UIButton!
     
-    var peripheral: String? = nil
+    var peripheral: QSPeripheral? = nil
     
     @IBAction func handleClick(_ sender: Any) {
-        print("Click \(String(describing: peripheral))")
+        ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Connecting to \(self.peripheral!.name!) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
+        
+        ACTION_DISPATCH(action: RequestConnect(peripheral: self.peripheral!.cbp))
+    }
+    
+    public func updateContent(forPeripheral newPeripheral: QSPeripheral) {
+        self.peripheral = newPeripheral
+        self.peripheralNameLabel.text = newPeripheral.name
+        var tintColor = UIColor.systemRed
+        var rssiLabelText = "RSSI: --- dBm"
+        if let rssi = newPeripheral.displayRssi() {
+            rssiLabelText = "RSSI: \(rssi) dBm"
+            tintColor = rssi > -70 ? .systemBlue : .systemYellow
+        }
+        switch newPeripheral.cbp.state {
+        case .connected:
+            tintColor = .systemGreen
+            rssiLabelText = "RSSI: --- dBm"
+        case .connecting:
+            tintColor = .systemGreen
+            rssiLabelText = "RSSI: --- dBm"
+        default:
+            break
+        }
+        self.signalImage.tintColor = tintColor
+        self.rssiLabel.text = rssiLabelText
+        self.connectButton.setTitleColor(.systemGray, for: .highlighted)
     }
 }
 
@@ -35,9 +63,9 @@ class DevicesTable: UITableView {
 }
 
 
-class DevicesTableVC: UITableViewController {
+class DevicesTableVC: UITableViewController, StoreSubscriber {
     
-    let peripherals: [String] = ["Fake Peripheral"]
+    var peripherals: [QSPeripheral] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -48,6 +76,41 @@ class DevicesTableVC: UITableViewController {
         for view in tableView.subviews {
             if view.isKind(of: UIScrollView.self) {
                 (view as! UIScrollView).delaysContentTouches = false
+            }
+        }
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        STORE.subscribe(self)
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        STORE.unsubscribe(self)
+    }
+
+    
+    func newState(state: AppState) {
+        let peripherals = state.peripherals
+            .values
+            .sorted(by: { $0.name < $1.name })
+        
+        DispatchQueue.main.async {
+            var reloadRequired = self.peripherals.count != peripherals.count
+            for (index, (old, new)) in zip(self.peripherals, peripherals).enumerated() {
+                if old.id() == new.id() && old.ts < new.ts {
+                    if let deviceCell = self.tableView.cellForRow(at: IndexPath(row: index, section: 0)) as? AdvertisementTableViewCell {
+                        deviceCell.updateContent(forPeripheral: new)
+                    }
+                } else {
+                    reloadRequired = true
+                }
+            }
+            
+            self.peripherals = peripherals
+            if reloadRequired {
+                self.tableView.reloadData()
             }
         }
     }
@@ -63,9 +126,7 @@ class DevicesTableVC: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "custom_cell0", for: indexPath)
         let advertisementCell = cell as! AdvertisementTableViewCell
-        advertisementCell.peripheral = peripherals[indexPath.row]
-        advertisementCell.peripheralNameLabel.text = advertisementCell.peripheral
-        advertisementCell.connectButton.setTitleColor(.systemGray, for: .highlighted)
+        advertisementCell.updateContent(forPeripheral: peripherals[indexPath.row])
         return cell
     }
 }
