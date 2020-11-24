@@ -26,7 +26,7 @@ class AdvertisementTableViewCell: UITableViewCell {
     @IBAction func handleClick(_ sender: Any) {
         switch self.peripheral?.cbp.state {
         case .connected, .connecting:
-            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Discnnecting from \(self.peripheral!.name!) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
+            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Disconnecting from \(self.peripheral!.name!) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
             
             ACTION_DISPATCH(action: RequestDisconnect(peripheral: self.peripheral!.cbp))
         default:
@@ -34,7 +34,7 @@ class AdvertisementTableViewCell: UITableViewCell {
             
             ACTION_DISPATCH(action: RequestConnect(peripheral: self.peripheral!.cbp))
             
-            viewController.performSegue(withIdentifier: "drillDownDeviceSeque", sender: viewController)
+            viewController.performSegue(withIdentifier: "activeDeviceSegue", sender: viewController)
         }
     }
     
@@ -62,8 +62,9 @@ class AdvertisementTableViewCell: UITableViewCell {
         self.signalImage.tintColor = tintColor
         self.rssiLabel.text = rssiLabelText
         self.connectButton.setTitleColor(.systemGray, for: .highlighted)
-        self.connectButton.titleLabel?.text = connectButtonText
-        self.connectButton.tintColor = connectButtonColor
+        self.connectButton.setTitle(connectButtonText, for: .normal)
+        self.connectButton.setTitle(connectButtonText, for: .selected)
+        self.connectButton.backgroundColor = connectButtonColor
     }
 }
 
@@ -111,21 +112,19 @@ class DevicesTableVC: UITableViewController, StoreSubscriber {
             .sorted(by: { $0.name < $1.name })
         
         DispatchQueue.main.async {
-            var reloadRequired = self.peripherals.count != peripherals.count
-            for (index, (old, new)) in zip(self.peripherals, peripherals).enumerated() {
-                if old.id() == new.id() && old.ts < new.ts {
-                    if let deviceCell = self.tableView.cellForRow(at: IndexPath(row: index, section: 0)) as? AdvertisementTableViewCell {
-                        deviceCell.updateContent(forPeripheral: new)
-                    }
-                } else {
-                    reloadRequired = true
-                }
-            }
+//            var reloadRequired = self.peripherals.count != peripherals.count
+//            for (index, (old, new)) in zip(self.peripherals, peripherals).enumerated() {
+//                if old.id() == new.id() {
+//                    if let deviceCell = self.tableView.cellForRow(at: IndexPath(row: index, section: 0)) as? AdvertisementTableViewCell {
+//                        deviceCell.updateContent(forPeripheral: new)
+//                    }
+//                } else {
+//                    reloadRequired = true
+//                }
+//            }
             
             self.peripherals = peripherals
-            if reloadRequired {
-                self.tableView.reloadData()
-            }
+            self.tableView.reloadData()
         }
     }
     
