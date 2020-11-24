@@ -12,7 +12,7 @@ import Toast
 struct QSPeripheral {
     var cbp: CBPeripheral!
     var characteristics: [UUID: CBCharacteristic]!
-    var name: String!
+    var peripheralName: String!
     var rssi: Int!
     var ts: Date!
     
@@ -23,6 +23,7 @@ struct QSPeripheral {
     var firmwareVersion: String?
     var hardwareVersion: String?
     var error: String?
+    var persistedName: String?
     var uniqueIdentifier: String?
     var bootCount: Int?
     
@@ -36,17 +37,21 @@ struct QSPeripheral {
         return cbp.identifier
     }
     
+    public func name() -> String {
+        guard let name = persistedName else {
+            return self.peripheralName
+        }
+        return name
+    }
+    
     public mutating func set(peripheral: CBPeripheral) {
         self.cbp = peripheral
-        self.name = peripheral.name ?? "Unknown"
+        self.peripheralName = peripheral.name ?? "Unknown"
         self.ts = Date()
     }
     
     public mutating func set(peripheral: CBPeripheral, rssi: NSNumber) {
         self.rssi = Int(truncating: rssi)
-        self.projectMode = "Multiwavelength PPG v1"
-        self.signalHz = 32
-        self.signalChannels = 6
         set(peripheral: peripheral)
     }
     

@@ -77,15 +77,15 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                     switch indexPath.row {
                     case 0:
                         let projectModeCell = tableView.cellForRow(at: indexPath)
-                        projectModeCell?.detailTextLabel?.text = peripheral.projectMode!
+                        projectModeCell?.detailTextLabel?.text = peripheral.projectMode ?? "Undefined"
                     case 1:
                         break
                     case 2:
                         let sampleRateCell = tableView.cellForRow(at: indexPath)
-                        sampleRateCell?.detailTextLabel?.text = "\(peripheral.signalHz!) Hz"
+                        sampleRateCell?.detailTextLabel?.text = peripheral.signalHz == nil ? "_ Hz" : "\(peripheral.signalHz!) Hz"
                     case 3:
                         let channelCell = tableView.cellForRow(at: indexPath)
-                        channelCell?.detailTextLabel?.text = "\(peripheral.signalChannels!)"
+                        channelCell?.detailTextLabel?.text = peripheral.signalChannels == nil ? "_" : "\(peripheral.signalChannels!)"
                     default:
                         fatalError("Invalid row selection for \(indexPath)")
                     }
@@ -112,7 +112,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         }
                     case 5:
                         let nameCell = tableView.cellForRow(at: indexPath)
-                        nameCell?.detailTextLabel?.text = peripheral.name
+                        nameCell?.detailTextLabel?.text = peripheral.name()
                         break
                     case 6:
                         let uuidCell = tableView.cellForRow(at: indexPath)
@@ -151,15 +151,95 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
             switch indexPath.row {
             case 0:
                 // show project picker
+                let storyboard = UIStoryboard(name: "Main", bundle: nil)
+                let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+                editorVC.headerLabelText = "Project Mode"
+                editorVC.options = ["Milk Sensor v0", "Multiwavelength PPG v1"]
+                if let projectMode = peripheral.projectMode {
+                    editorVC.proposedValue = editorVC.options.firstIndex(of: "\(projectMode)") ?? 0
+                    editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(projectMode)")
+                } else {
+                    editorVC.proposedValue = 0
+                    editorVC.confirmedValue = nil
+                }
+                editorVC.predicate = { (i) in return true }
+                editorVC.actionFactory = { selectedIndex in
+                    let selection = editorVC.options[selectedIndex]
+                    if let peripheral = peripheral.cbp {
+                        LOGGER.info("Configured signal interpretation projectMode: \(selection)")
+                        return UpdateProjectMode(peripheral: peripheral, projectMode: selection)
+                    } else {
+                        LOGGER.error("No peripheral available to update hz: \(selection)")
+                        return Tick()
+                    }
+                }
+                self.present(editorVC, animated: true)
+
                 break
             case 1:
                 // not allowed
                 break
             case 2:
                 // show hz picker
+                let storyboard = UIStoryboard(name: "Main", bundle: nil)
+                let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+                editorVC.headerLabelText = "Sample Hz"
+                editorVC.options = (0...7).map { "\(1 << $0)" }
+                if let signalHz = peripheral.signalHz {
+                    editorVC.proposedValue = editorVC.options.firstIndex(of: "\(signalHz)") ?? 0
+                    editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(signalHz)")
+                } else {
+                    editorVC.proposedValue = 0
+                    editorVC.confirmedValue = nil
+                }
+                editorVC.predicate = { (i) in return true }
+                editorVC.actionFactory = { selectedIndex in
+                    let selection = editorVC.options[selectedIndex]
+                    if let peripheral = peripheral.cbp {
+                        LOGGER.info("Configured signal interpretation hz: \(selection)")
+                        if let hz = Int(selection) {
+                            return UpdateSignalHz(peripheral: peripheral, hz: hz)
+                        } else {
+                            LOGGER.error("Could not parse hz input: \(selection)")
+                            return AppendToast(message: ToastMessage(message: "Cannot parse hz input", duration: TimeInterval(2), position: .center, title: "Input Error", image: nil, style: ToastStyle(), completion: nil))
+                        }
+                    } else {
+                        LOGGER.error("No peripheral available to update hz: \(selection)")
+                        return Tick()
+                    }
+                }
+                self.present(editorVC, animated: true)
                 break
             case 3:
                 // show channel picker
+                let storyboard = UIStoryboard(name: "Main", bundle: nil)
+                let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+                editorVC.headerLabelText = "Channels"
+                editorVC.options = (1...8).map { "\($0)" }
+                if let signalChannels = peripheral.signalChannels {
+                    editorVC.proposedValue = editorVC.options.firstIndex(of: "\(signalChannels)") ?? 0
+                    editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(signalChannels)")
+                } else {
+                    editorVC.proposedValue = 0
+                    editorVC.confirmedValue = nil
+                }
+                editorVC.predicate = { (i) in return true }
+                editorVC.actionFactory = { selectedIndex in
+                    let selection = editorVC.options[selectedIndex]
+                    if let peripheral = peripheral.cbp {
+                        LOGGER.info("Configured signal interpretation channels: \(selection)")
+                        if let channels = Int(selection) {
+                            return UpdateSignalChannels(peripheral: peripheral, channels: channels)
+                        } else {
+                            LOGGER.error("Could not parse channels input: \(selection)")
+                            return AppendToast(message: ToastMessage(message: "Cannot parse channels input", duration: TimeInterval(2), position: .center, title: "Input Error", image: nil, style: ToastStyle(), completion: nil))
+                        }
+                    } else {
+                        LOGGER.error("No peripheral available to update channels: \(selection)")
+                        return Tick()
+                    }
+                }
+                self.present(editorVC, animated: true)
                 break
             default:
                 fatalError("Invalid row selection for \(indexPath)")
@@ -186,7 +266,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                             return AppendToast(message: ToastMessage(message: "Cannot parse control input", duration: TimeInterval(2), position: .center, title: "Input Error", image: nil, style: ToastStyle(), completion: nil))
                         }
                     } else {
-                        LOGGER.error("No peripheral available to issue write for hardware version: \(inputString)")
+                        LOGGER.error("No peripheral available to issue write for control: \(inputString)")
                         return Tick()
                     }
                 }
@@ -225,8 +305,8 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "textAttributeEditorVC") as! textAttributeEditorVC
                 editorVC.headerLabelText = "Name"
                 editorVC.placeholderValue = "QSS0"
-                editorVC.confirmedValue = peripheral.name
-                editorVC.proposedValue = peripheral.name
+                editorVC.confirmedValue = peripheral.name()
+                editorVC.proposedValue = ""
                 editorVC.predicate = { $0.range(of: "^[a-zA-Z0-9]+$", options: .regularExpression) != nil }
                 editorVC.actionFactory = { inputString in
                     if let peripheral = peripheral.cbp {
@@ -310,8 +390,59 @@ class textAttributeEditorVC: UIViewController {
             self.dismiss(animated: true)
         }
     }
-    
-    
-    
-    
 }
+
+class pickerAttributeEditorVC: UIViewController, UIPickerViewDelegate, UIPickerViewDataSource {
+    var headerLabelText: String!
+    var options: [String]!
+    var confirmedValue: Int?
+    var proposedValue: Int!
+    var predicate: ((Int) -> Bool)!
+    var actionFactory: ((Int) -> Action)!
+    
+    
+    @IBOutlet weak var headerLabel: UILabel!
+    @IBOutlet weak var valuePicker: UIPickerView!
+    @IBOutlet weak var cancelButton: UIButton!
+    @IBOutlet weak var confirmButton: UIButton!
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        self.headerLabel.text = headerLabelText
+        self.valuePicker.delegate = self
+        self.valuePicker.dataSource = self
+        self.valuePicker.selectRow(proposedValue, inComponent: 0, animated: true)
+    }
+        
+    @IBAction func handleClickedCancel(_ sender: Any) {
+        self.dismiss(animated: true)
+    }
+    
+    @IBAction func handleClickedConfirm(_ sender: Any) {
+        self.proposedValue = self.valuePicker.selectedRow(inComponent: 0)
+        self.confirmButton.isEnabled = self.proposedValue != self.confirmedValue && self.predicate(self.proposedValue)
+        if self.confirmButton.isEnabled {
+            ACTION_DISPATCH(action: self.actionFactory(self.proposedValue))
+            self.dismiss(animated: true)
+        }
+    }
+    
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        1
+    }
+
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        options.count
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        self.proposedValue = row
+        self.confirmButton.isEnabled = self.proposedValue != self.confirmedValue && self.predicate(self.proposedValue)
+    }
+
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        options[row]
+    }
+}
+

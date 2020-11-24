@@ -119,6 +119,21 @@ struct WriteUniqueIdentifier: Action {
     let uniqueIdentifier: String
 }
 
+struct UpdateProjectMode: Action {
+    let peripheral: CBPeripheral
+    let projectMode: String
+}
+
+struct UpdateSignalChannels: Action {
+    let peripheral: CBPeripheral
+    let channels: Int
+}
+
+struct UpdateSignalHz: Action {
+    let peripheral: CBPeripheral
+    let hz: Int
+}
+
 struct AppendToast: Action {
     let message: ToastMessage
 }
@@ -155,7 +170,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let _ = getPeripheral(&state, action.peripheral)
     case let action as DidUpdateValueForBattery:
         let peripheral = getPeripheral(&state, action.peripheral)
-        LOGGER.debug("\(peripheral.name ?? "Unknown") has battery level \(action.batteryLevel)")
+        LOGGER.debug("\(peripheral.name()) has battery level \(action.batteryLevel)")
     case let action as DidUpdateValueForFirmwareVersion:
         var peripheral = getPeripheral(&state, action.peripheral)
         peripheral.firmwareVersion = action.value
@@ -173,7 +188,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         }
     case let action as DidUpdateValueForName:
         var peripheral = getPeripheral(&state, action.peripheral)
-        peripheral.name = action.value
+        peripheral.persistedName = action.value
         state.peripherals[peripheral.id()] = peripheral
     case let action as DidUpdateValueForUniqueIdentifier:
         var peripheral = getPeripheral(&state, action.peripheral)
@@ -195,6 +210,18 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as WriteUniqueIdentifier:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.writeUniqueIdentifier(value: action.uniqueIdentifier)
+    case let action as UpdateProjectMode:
+        var peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.projectMode = action.projectMode
+        state.peripherals[peripheral.id()] = peripheral
+    case let action as UpdateSignalHz:
+        var peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.signalHz = action.hz
+        state.peripherals[peripheral.id()] = peripheral
+    case let action as UpdateSignalChannels:
+        var peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.signalChannels = action.channels
+        state.peripherals[peripheral.id()] = peripheral
     case let action as AppendToast:
         state.toastQueue.append(action.message)
     case _ as ProcessToast:

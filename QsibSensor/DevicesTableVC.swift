@@ -24,13 +24,18 @@ class AdvertisementTableViewCell: UITableViewCell {
     var viewController: DevicesTableVC!
     
     @IBAction func handleClick(_ sender: Any) {
+        guard let peripheral = self.peripheral else {
+            LOGGER.error("No peripheral associated with advertisement cell")
+            fatalError("No peripheral associated with advertisement cell")
+        }
+        
         switch self.peripheral?.cbp.state {
         case .connected, .connecting:
-            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Disconnecting from \(self.peripheral!.name!) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
+            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Disconnecting from \(peripheral.name()) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
             
             ACTION_DISPATCH(action: RequestDisconnect(peripheral: self.peripheral!.cbp))
         default:
-            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Connecting to \(self.peripheral!.name!) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
+            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Connecting to \(peripheral.name()) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
             
             ACTION_DISPATCH(action: RequestConnect(peripheral: self.peripheral!.cbp))
             
@@ -40,7 +45,7 @@ class AdvertisementTableViewCell: UITableViewCell {
     
     public func updateContent(forPeripheral newPeripheral: QSPeripheral) {
         self.peripheral = newPeripheral
-        self.peripheralNameLabel.text = newPeripheral.name
+        self.peripheralNameLabel.text = newPeripheral.name()
         var tintColor = UIColor.systemRed
         var rssiLabelText = "RSSI: --- dBm"
         if let rssi = newPeripheral.displayRssi() {
@@ -109,7 +114,7 @@ class DevicesTableVC: UITableViewController, StoreSubscriber {
     func newState(state: AppState) {
         let peripherals = state.peripherals
             .values
-            .sorted(by: { $0.name < $1.name })
+            .sorted(by: { $0.name() < $1.name() })
         
         DispatchQueue.main.async {
 //            var reloadRequired = self.peripherals.count != peripherals.count
