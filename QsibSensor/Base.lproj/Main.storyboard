@@ -358,8 +358,22 @@
                     <view key="view" contentMode="scaleToFill" id="dRF-NW-Fqi">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="624"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <containerView opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="emw-xg-XOd">
+                                <rect key="frame" x="0.0" y="0.0" width="414" height="575"/>
+                                <connections>
+                                    <segue destination="17B-Wv-XZw" kind="embed" id="3cB-yq-9eP"/>
+                                </connections>
+                            </containerView>
+                        </subviews>
                         <viewLayoutGuide key="safeArea" id="ZaQ-8F-qpb"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <constraints>
+                            <constraint firstItem="ZaQ-8F-qpb" firstAttribute="trailing" secondItem="emw-xg-XOd" secondAttribute="trailing" id="601-IG-vpg"/>
+                            <constraint firstItem="ZaQ-8F-qpb" firstAttribute="bottom" secondItem="emw-xg-XOd" secondAttribute="bottom" id="WRm-tR-UAn"/>
+                            <constraint firstItem="emw-xg-XOd" firstAttribute="top" secondItem="ZaQ-8F-qpb" secondAttribute="top" id="gb1-lN-OPl"/>
+                            <constraint firstItem="emw-xg-XOd" firstAttribute="leading" secondItem="ZaQ-8F-qpb" secondAttribute="leading" id="qao-zM-qQ2"/>
+                        </constraints>
                     </view>
                     <tabBarItem key="tabBarItem" title="Inspect Data" id="AD6-2W-2u1">
                         <imageReference key="image" image="point.topleft.down.curvedto.point.bottomright.up" catalog="system" symbolScale="large"/>
@@ -732,7 +746,7 @@
                 </tableViewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="x84-M7-CZ9" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="2857" y="235"/>
+            <point key="canvasLocation" x="2857" y="169"/>
         </scene>
         <!--Picker Attribute EditorVC-->
         <scene sceneID="Nc4-sZ-eD9">
@@ -756,7 +770,7 @@
                                         <nil key="highlightedColor"/>
                                     </label>
                                     <pickerView contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="r1x-xm-eV8">
-                                        <rect key="frame" x="0.0" y="209" width="414" height="104"/>
+                                        <rect key="frame" x="0.0" y="208" width="414" height="104"/>
                                     </pickerView>
                                     <stackView opaque="NO" contentMode="scaleToFill" distribution="fillEqually" translatesAutoresizingMaskIntoConstraints="NO" id="QlG-ES-mdc">
                                         <rect key="frame" x="0.0" y="312.5" width="414" height="104.5"/>
@@ -805,6 +819,81 @@
                 <placeholder placeholderIdentifier="IBFirstResponder" id="f6C-fV-K6h" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="2858" y="739"/>
+        </scene>
+        <!--Inspect DataVC-->
+        <scene sceneID="2pe-po-bBe">
+            <objects>
+                <tableViewController id="17B-Wv-XZw" customClass="InspectDataVC" customModule="QsibSensor" customModuleProvider="target" sceneMemberID="viewController">
+                    <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="insetGrouped" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="18" sectionFooterHeight="18" id="71U-18-oxI">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="575"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <prototypes>
+                            <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="default" indentationWidth="10" reuseIdentifier="controlcell0" textLabel="Jlf-X2-jqD" detailTextLabel="k31-TT-rWT" style="IBUITableViewCellStyleValue1" id="eh1-Ru-PYW" userLabel="Control Cell" customClass="ControlCell" customModule="QsibSensor" customModuleProvider="target">
+                                <rect key="frame" x="20" y="55.5" width="374" height="43.5"/>
+                                <autoresizingMask key="autoresizingMask"/>
+                                <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" preservesSuperviewLayoutMargins="YES" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="eh1-Ru-PYW" id="Tn6-gH-Yqp">
+                                    <rect key="frame" x="0.0" y="0.0" width="374" height="43.5"/>
+                                    <autoresizingMask key="autoresizingMask"/>
+                                    <subviews>
+                                        <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="Title" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="Jlf-X2-jqD">
+                                            <rect key="frame" x="20" y="12" width="33" height="20.5"/>
+                                            <autoresizingMask key="autoresizingMask"/>
+                                            <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                            <nil key="textColor"/>
+                                            <nil key="highlightedColor"/>
+                                        </label>
+                                        <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="Detail" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="k31-TT-rWT">
+                                            <rect key="frame" x="310" y="12" width="44" height="20.5"/>
+                                            <autoresizingMask key="autoresizingMask"/>
+                                            <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                            <nil key="textColor"/>
+                                            <nil key="highlightedColor"/>
+                                        </label>
+                                    </subviews>
+                                </tableViewCellContentView>
+                            </tableViewCell>
+                            <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="default" indentationWidth="10" reuseIdentifier="channelcell0" id="IfX-jb-qob" userLabel="Channel Cell" customClass="ChannelCell" customModule="QsibSensor" customModuleProvider="target">
+                                <rect key="frame" x="20" y="99" width="374" height="400.5"/>
+                                <autoresizingMask key="autoresizingMask"/>
+                                <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" preservesSuperviewLayoutMargins="YES" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="IfX-jb-qob" id="cN3-NR-vGu">
+                                    <rect key="frame" x="0.0" y="0.0" width="374" height="400.5"/>
+                                    <autoresizingMask key="autoresizingMask"/>
+                                    <subviews>
+                                        <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" translatesAutoresizingMaskIntoConstraints="NO" id="o8O-H4-PrC">
+                                            <rect key="frame" x="0.0" y="0.0" width="374" height="400.5"/>
+                                            <subviews>
+                                                <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="ntP-fz-Hpk" customClass="LineChartView" customModule="Charts">
+                                                    <rect key="frame" x="0.0" y="0.0" width="374" height="400.5"/>
+                                                    <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                                                    <constraints>
+                                                        <constraint firstAttribute="height" constant="400" id="wq8-p4-4Y5"/>
+                                                    </constraints>
+                                                </view>
+                                            </subviews>
+                                        </stackView>
+                                    </subviews>
+                                    <constraints>
+                                        <constraint firstAttribute="trailing" secondItem="o8O-H4-PrC" secondAttribute="trailing" id="ZmS-eK-WFT"/>
+                                        <constraint firstAttribute="bottom" secondItem="o8O-H4-PrC" secondAttribute="bottom" id="wpO-Nn-lrn"/>
+                                        <constraint firstItem="o8O-H4-PrC" firstAttribute="leading" secondItem="cN3-NR-vGu" secondAttribute="leading" id="xZs-eu-7XH"/>
+                                        <constraint firstItem="o8O-H4-PrC" firstAttribute="top" secondItem="cN3-NR-vGu" secondAttribute="top" id="ywf-xP-Gkl"/>
+                                    </constraints>
+                                </tableViewCellContentView>
+                                <connections>
+                                    <outlet property="chartView" destination="ntP-fz-Hpk" id="rwd-nC-6sD"/>
+                                </connections>
+                            </tableViewCell>
+                        </prototypes>
+                        <connections>
+                            <outlet property="dataSource" destination="17B-Wv-XZw" id="m46-JU-azh"/>
+                            <outlet property="delegate" destination="17B-Wv-XZw" id="9iT-T4-Nee"/>
+                        </connections>
+                    </tableView>
+                </tableViewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="p9d-1R-n9n" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="3514" y="169"/>
         </scene>
     </scenes>
     <resources>

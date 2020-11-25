@@ -184,8 +184,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         case QSS_CONTROL_UUID:
             LOGGER.trace("Updated QSS_CONTROL_UUID: \(QSS_CONTROL_UUID) :: \(characteristic.value!.hexEncodedString())")
         case QSS_SIGNAL_UUID:
-            LOGGER.trace("Updated QSS_SIGNAL_UUID: \(QSS_SIGNAL_UUID) for the \(count)th time :: \(characteristic.value!)")
-            count += 1
+            ACTION_DISPATCH(action: DidUpdateValueForSignal(peripheral: peripheral, signal: characteristic.value!))
         case QSS_FIRMWARE_VERSION_UUID:
             let firmwareVersion = String(data: characteristic.value!, encoding: .utf8) ?? "invalid"
             LOGGER.trace("Updated QSS_FIRMWARE_VERSION_UUID: \(QSS_FIRMWARE_VERSION_UUID) :: \(firmwareVersion)")
@@ -213,7 +212,6 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
                     $0.load(as: UInt32.self)
                 }
             }
-//            let bootCount = Int(CFSwapInt32(beforeOrderBootCount))
             let bootCount = Int(beforeOrderBootCount)
             LOGGER.trace("Updated QSS_BOOT_COUNT_UUID: \(QSS_BOOT_COUNT_UUID) :: \(bootCount)")
             ACTION_DISPATCH(action: DidUpdateValueForBootCount(peripheral: peripheral, value: bootCount))
