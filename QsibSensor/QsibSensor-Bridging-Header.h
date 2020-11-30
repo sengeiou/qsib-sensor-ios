@@ -8,7 +8,7 @@
 #ifndef QsibSensor_Bridging_Header_h
 #define QsibSensor_Bridging_Header_h
 
-#include "greetings.h"
+#include "qsib_sensor_lib_rs.h"
 
 
 #endif /* QsibSensor_Bridging_Header_h */

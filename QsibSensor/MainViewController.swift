@@ -15,8 +15,6 @@ class MainViewController: UIViewController, StoreSubscriber {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        let libInst = QsibSensorLib()
-        print("Rust says \(libInst.sayHello(to: "Jacob"))")
     }
     
     override func viewWillAppear(_ animated: Bool) {

@@ -22,6 +22,7 @@ let FORMATTER = DateFormatter()
 let ENCODER = JSONEncoder()
 let DECODER = JSONDecoder()
 let HTTP_CLIENT = HTTPClient(eventLoopGroupProvider: .shared(EVENT_LOOP_GROUP))
+let QS_LIB = QsibSensorLib()
 enum DateError : String, Error {
     case invalidDate
 }

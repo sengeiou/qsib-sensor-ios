@@ -38,6 +38,7 @@
 /* Begin PBXFileReference section */
 		060C372E256C49F200DEF35F /* DeviceInfoVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfoVC.swift; sourceTree = "<group>"; };
 		0630F8F8256D9EDE00559577 /* InspectDataVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectDataVC.swift; sourceTree = "<group>"; };
+		068580A62575516400988627 /* qsib_sensor_lib_rs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = qsib_sensor_lib_rs.h; path = "../../../qsib-sensor-lib-rs/src/qsib_sensor_lib_rs.h"; sourceTree = "<group>"; };
 		068E70672565AC2F00673E32 /* QsibSensor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QsibSensor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		068E706A2565AC2F00673E32 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		068E706C2565AC2F00673E32 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -47,7 +48,6 @@
 		068E70762565AC3200673E32 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		068E70782565AC3200673E32 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		068E70822565AC6800673E32 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
-		068E70832565AC8A00673E32 /* greetings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = greetings.h; path = "../../../qsib-sensor-lib-rs/src/greetings.h"; sourceTree = "<group>"; };
 		068E70842565ACAC00673E32 /* QsibSensor-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "QsibSensor-Bridging-Header.h"; sourceTree = "<group>"; };
 		068E70852565AE1200673E32 /* libqsib_sensor_rs.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libqsib_sensor_rs.a; path = "../../qsib-sensor-lib-rs/target/universal/release/libqsib_sensor_rs.a"; sourceTree = "<group>"; };
 		068E70872565AE4200673E32 /* QsibSensorLib.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibSensorLib.swift; sourceTree = "<group>"; };
@@ -102,8 +102,8 @@
 		068E70692565AC2F00673E32 /* QsibSensor */ = {
 			isa = PBXGroup;
 			children = (
+				068580A62575516400988627 /* qsib_sensor_lib_rs.h */,
 				06A8B5302568339D00880CE8 /* QsibSensor.entitlements */,
-				068E70832565AC8A00673E32 /* greetings.h */,
 				068E706A2565AC2F00673E32 /* AppDelegate.swift */,
 				068E706C2565AC2F00673E32 /* SceneDelegate.swift */,
 				068E706E2565AC2F00673E32 /* MainViewController.swift */,

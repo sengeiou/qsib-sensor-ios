@@ -40,6 +40,7 @@ class QSPeripheralCodableState: Codable {
     }
 }
 
+
 class Measurement {
     let start = Date()
     var stop: Date?
