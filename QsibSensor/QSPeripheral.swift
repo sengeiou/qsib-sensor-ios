@@ -40,11 +40,10 @@ class QSPeripheralCodableState: Codable {
     }
 }
 
-struct Measurement {
+class Measurement {
     let start = Date()
     var stop: Date?
     var counters: [UInt32] = []
-    var signalMap: [(Int16) -> Double] = [] // [channelIdx]
     var channels: [[[Int16]]] = [] // [channelIdx][notificationIdx][sampleIdx]
     
     var runningTime: Double?
@@ -55,11 +54,10 @@ struct Measurement {
         for _ in 0..<numChannels {
             channels.append([])
             graphableChannels.append([])
-            signalMap.append({ Double($0) })
         }
     }
     
-    public mutating func addPayload(data: Data, signalHz hz: Int) {
+    public func addPayload(data: Data, signalHz hz: Int) {
         guard data.count > 4 + 1 + 1 else {
             LOGGER.error("Received payload that could not be valid because it is too short")
             return
@@ -114,7 +112,7 @@ struct Measurement {
                     return sample
                 }
 
-                graphableChannels[channelIndex].append(signalMap[channelIndex](sample))
+                graphableChannels[channelIndex].append(Double(sample))
                 newChannels[channelIndex].append(sample)
                 bufferIndex += 2
                 channelIndex += 1
@@ -125,6 +123,7 @@ struct Measurement {
                     graphableTime.append(runningTime!)
                 }
             }
+            
             for (channelIndex, newChannelData) in newChannels.enumerated() {
                 channels[channelIndex].append(newChannelData)
             }
@@ -132,7 +131,7 @@ struct Measurement {
     }
 }
 
-struct QSPeripheral {
+class QSPeripheral {
     var cbp: CBPeripheral!
     var characteristics: [UUID: CBCharacteristic]!
     var peripheralName: String!
@@ -210,18 +209,18 @@ struct QSPeripheral {
         return name
     }
     
-    public mutating func set(peripheral: CBPeripheral) {
+    public func set(peripheral: CBPeripheral) {
         self.cbp = peripheral
         self.peripheralName = peripheral.name ?? "Unknown"
         self.ts = Date()
     }
     
-    public mutating func set(peripheral: CBPeripheral, rssi: NSNumber) {
+    public func set(peripheral: CBPeripheral, rssi: NSNumber) {
         self.rssi = Int(truncating: rssi)
         set(peripheral: peripheral)
     }
     
-    public mutating func add(characteristic: CBCharacteristic) {
+    public func add(characteristic: CBCharacteristic) {
         self.characteristics[UUID(uuidString: characteristic.uuid.uuidString)!] = characteristic
         self.ts = Date()
     }

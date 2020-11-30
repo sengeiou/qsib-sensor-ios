@@ -74,6 +74,7 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
 class InspectDataVC: UITableViewController, StoreSubscriber {
     
     var peripheral: QSPeripheral?
+    var updateTs = Date()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -103,6 +104,11 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
         guard updateInfo else {
             return
         }
+        
+        guard Date().timeIntervalSince(updateTs) > 5 else {
+            return
+        }
+        updateTs = Date()
 
         DispatchQueue.main.async {
             self.tableView.reloadData()
@@ -200,6 +206,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             }
 
             cell.data = zip(activeMeasurement.graphableTime, activeMeasurement.graphableChannels[indexPath.section - 1]).map { $0 }
+            LOGGER.trace("Updating channel \(indexPath.section - 1) with \(cell.data.count) values")
             cell.dataLabel = "SAADC Samples (mV)"
             cell.colorIndex = indexPath.section
             cell.chartView.delegate = cell

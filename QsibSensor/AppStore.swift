@@ -193,7 +193,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         save(&state, peripheral)
     case let action as DidUpdateValueForSignal:
         let peripheral = getPeripheral(&state, action.peripheral)
-        DISPATCH.execute {
+        EVENT_LOOP_GROUP.next().execute {
             guard var measurement = peripheral.activeMeasurement else {
                 LOGGER.error("No active measurement for \(peripheral.id())")
                 return
@@ -316,7 +316,7 @@ func TICK() {
 }
 
 func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral) -> QSPeripheral {
-    if var qsp = state.peripherals[peripheral.identifier] {
+    if let qsp = state.peripherals[peripheral.identifier] {
         qsp.set(peripheral: peripheral)
         state.peripherals[peripheral.identifier] = qsp
         return qsp
@@ -326,9 +326,9 @@ func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral) -> QSPer
 }
 
 func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral, rssi: NSNumber) -> QSPeripheral {
-    if var qsp = state.peripherals[peripheral.identifier] {
+    if let qsp = state.peripherals[peripheral.identifier] {
         qsp.set(peripheral: peripheral, rssi: rssi)
-        state.peripherals[peripheral.identifier] = qsp
+//        state.peripherals[peripheral.identifier] = qsp
         return qsp
     } else {
         let qsp = QSPeripheral(peripheral: peripheral, rssi: rssi)
@@ -344,6 +344,6 @@ func save(_ state: inout AppState, _ peripheral: QSPeripheral) {
 }
 
 func saveOften(_ state: inout AppState, _ peripheral: QSPeripheral) {
-    state.peripherals[peripheral.id()] = peripheral
+//    state.peripherals[peripheral.id()] = peripheral
 }
 
