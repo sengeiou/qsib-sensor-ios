@@ -141,7 +141,7 @@ struct UpdateSignalHz: Action {
 
 struct UpdateMeasurement: Action {
     let peripheral: CBPeripheral
-    let measurement: Measurement
+    let measurement: QsMeasurement
 }
 
 struct StartMeasurement: Action {
@@ -151,6 +151,23 @@ struct StartMeasurement: Action {
 struct StopMeasurement: Action {
     let peripheral: CBPeripheral
 }
+
+struct RequestUpdateGraphables: Action {
+    let peripheral: CBPeripheral
+}
+
+struct UpdateGraphableTimestamps: Action {
+    let peripheral: CBPeripheral
+    let measurement: QsMeasurement
+    let timestamps: [Double]
+}
+
+struct UpdateGraphableChannels: Action {
+    let peripheral: CBPeripheral
+    let measurement: QsMeasurement
+    let channels: [[Double]]
+}
+
 
 struct AppendToast: Action {
     let message: ToastMessage
@@ -172,7 +189,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let peripheral = getPeripheral(&state, action.peripheral, rssi: action.rssi)
         peripheral.cbp.delegate = state.ble
     case let action as DidDiscoverCharacteristic:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.add(characteristic: action.characteristic)
         save(&state, peripheral)
     case let action as RequestConnect:
@@ -187,52 +204,51 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as DidFailToConnect:
         let _ = getPeripheral(&state, action.peripheral)
     case let action as DidUpdateValueForBattery:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         LOGGER.trace("\(peripheral.name()) has battery level \(action.batteryLevel)")
         peripheral.batteryLevel = Int(action.batteryLevel)
         save(&state, peripheral)
     case let action as DidUpdateValueForSignal:
         let peripheral = getPeripheral(&state, action.peripheral)
         EVENT_LOOP_GROUP.next().execute {
-            guard var measurement = peripheral.activeMeasurement else {
+            guard let measurement = peripheral.activeMeasurement else {
                 LOGGER.error("No active measurement for \(peripheral.id())")
                 return
             }
-            
-            guard let signalHz = peripheral.signalHz else {
-                LOGGER.error("No signal hz select to interpret data")
+                        
+            guard let samples = measurement.addPayload(data: action.signal) else {
+                LOGGER.error("Failed to add payload to \(measurement)")
                 return
             }
-            
-            measurement.addPayload(data: action.signal, signalHz: signalHz)
+            LOGGER.trace("Added \(samples) for updated signal value")
             
             ACTION_DISPATCH(action: UpdateMeasurement(peripheral: peripheral.cbp, measurement: measurement))
         }
     case let action as DidUpdateValueForFirmwareVersion:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.firmwareVersion = action.value
         save(&state, peripheral)
     case let action as DidUpdateValueForHardwareVersion:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.hardwareVersion = action.value
         save(&state, peripheral)
     case let action as DidUpdateValueForError:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.error = action.value
         save(&state, peripheral)
         if !action.value.isEmpty {
             LOGGER.warning("Encountered error for \(peripheral)")
         }
     case let action as DidUpdateValueForName:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.persistedName = action.value
         save(&state, peripheral)
     case let action as DidUpdateValueForUniqueIdentifier:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.uniqueIdentifier = action.value
         save(&state, peripheral)
     case let action as DidUpdateValueForBootCount:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.bootCount = action.value
         save(&state, peripheral)
     case let action as WriteControl:
@@ -248,25 +264,25 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.writeUniqueIdentifier(value: action.uniqueIdentifier)
     case let action as UpdateProjectMode:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.projectMode = action.projectMode
         save(&state, peripheral)
     case let action as UpdateSignalHz:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.signalHz = action.hz
         save(&state, peripheral)
     case let action as UpdateSignalChannels:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.signalChannels = action.channels
         save(&state, peripheral)
     case let action as UpdateMeasurement:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement = action.measurement
         saveOften(&state, peripheral)
     case let action as StartMeasurement:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         if let numChannels = peripheral.signalChannels {
-            peripheral.activeMeasurement = Measurement(numChannels: numChannels)
+            peripheral.activeMeasurement = QsMeasurement(signalChannels: UInt8(numChannels))
             save(&state, peripheral)
             let data = Data([0x69])
             ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
@@ -274,7 +290,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
             LOGGER.error("Number of channels not set. Cannot start measurement")
         }
     case let action as StopMeasurement:
-        var peripheral = getPeripheral(&state, action.peripheral)
+        let peripheral = getPeripheral(&state, action.peripheral)
         if let activeMeasurement = peripheral.activeMeasurement {
             peripheral.finalizedMeasurements.append(activeMeasurement)
             peripheral.activeMeasurement = nil
@@ -284,6 +300,34 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         save(&state, peripheral)
         let data = Data([0x00])
         ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+    case let action as RequestUpdateGraphables:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        if let measurement = peripheral.activeMeasurement {
+            DISPATCH.execute {
+                guard let signalHz = peripheral.signalHz else {
+                    LOGGER.error("Cannot interpret timestamps without expected signal hz")
+                    return
+                }
+                
+                guard let (_, timestamps) = measurement.interpretTimestamps(hz: Float(signalHz), rateScaler: 1.0) else {
+                    LOGGER.error("Failed to interpret timestamps for \(measurement)")
+                    return
+                }
+                
+                ACTION_DISPATCH(action: UpdateGraphableTimestamps(peripheral: peripheral.cbp, measurement: measurement, timestamps: timestamps))
+            }
+            
+            DISPATCH.execute {
+                guard let (_, channelSignals) = measurement.getSignals() else {
+                    LOGGER.error("Failed to copy measurement signals for \(measurement)")
+                    return
+                }
+                
+                ACTION_DISPATCH(action: UpdateGraphableChannels(peripheral: peripheral.cbp, measurement: measurement, channels: channelSignals))
+            }
+        } else {
+            LOGGER.debug("Cannot request update graphables on peripheral without active measurement")
+        }
     case let action as AppendToast:
         state.toastQueue.append(action.message)
     case _ as ProcessToast:

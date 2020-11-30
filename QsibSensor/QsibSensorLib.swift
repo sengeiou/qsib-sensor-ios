@@ -11,8 +11,9 @@ class QsMeasurement {
     let rs_id: UInt32
     let signalChannels: UInt8
     var sampleCount: UInt64
-//    var channels: [[Double]]
-    
+
+    var graphableTimestamps: [Double]?
+    var graphableChannels: [[Double]]?
     
     public init(signalChannels: UInt8) {
         LOGGER.trace("Allocating QsMeasurment with \(signalChannels)")

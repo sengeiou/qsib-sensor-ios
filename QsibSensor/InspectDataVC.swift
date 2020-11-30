@@ -31,7 +31,8 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
 
     @IBOutlet weak var chartView: LineChartView!
     
-    var data: [(Double, Double)] = []
+    var timestamps: [Double]! = nil
+    var channel: [Double]! = nil
     var dataLabel: String! = nil
     var colorIndex: Int! = nil
     
@@ -41,7 +42,7 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
         self.chartView.rightAxis.removeAllLimitLines()
         
         var dataSets: [LineChartDataSet] = []
-        for rawData in [data] {
+        for rawData in [zip(timestamps, channel)] {
             let entries: [ChartDataEntry] = rawData.map { ChartDataEntry(x: $0.0, y: $0.1) }
             let color = ChannelCell.COLORS[colorIndex % ChannelCell.COLORS.count]
             let dataSet = LineChartDataSet(entries: entries, label: self.dataLabel)
@@ -105,10 +106,11 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             return
         }
         
-        guard Date().timeIntervalSince(updateTs) > 5 else {
+        guard Date().timeIntervalSince(updateTs) > 1 else {
             return
         }
         updateTs = Date()
+        ACTION_DISPATCH(action: RequestUpdateGraphables(peripheral: peripheral!.cbp))
 
         DispatchQueue.main.async {
             self.tableView.reloadData()
@@ -200,13 +202,19 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 return cell
             }
             
-            if indexPath.section - 1 > activeMeasurement.channels.count {
+            if indexPath.section - 1 > activeMeasurement.signalChannels {
                 LOGGER.error("Cannot populate data for channel that the active measurement is not configured to have")
                 fatalError("Cannot populate data for channel that the active measurement is not configured to have")
             }
+            
+            guard let graphableTimestamps = activeMeasurement.graphableTimestamps,
+                  let graphableChannels = activeMeasurement.graphableChannels else {
+                return cell
+            }
 
-            cell.data = zip(activeMeasurement.graphableTime, activeMeasurement.graphableChannels[indexPath.section - 1]).map { $0 }
-            LOGGER.trace("Updating channel \(indexPath.section - 1) with \(cell.data.count) values")
+            cell.timestamps = graphableTimestamps
+            cell.channel = graphableChannels[indexPath.section - 1]
+            LOGGER.trace("Updating channel \(indexPath.section - 1) with \(cell.timestamps.count) (\(cell.channel.count)) values")
             cell.dataLabel = "SAADC Samples (mV)"
             cell.colorIndex = indexPath.section
             cell.chartView.delegate = cell
