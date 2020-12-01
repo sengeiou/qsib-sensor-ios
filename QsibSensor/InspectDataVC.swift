@@ -12,8 +12,9 @@ import ReSwift
 import Charts
 
 class ControlCell: UITableViewCell {
+
     
-    var start: Date?
+    
 }
 
 class ChannelCell: UITableViewCell, ChartViewDelegate {
@@ -77,6 +78,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     var peripheral: QSPeripheral?
     var updateTs = Date()
     
+    var cellHeights: [IndexPath: CGFloat] = [:]
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -120,7 +123,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
         case 0:
-            return 5
+            return 4
         default:
             return 1
         }
@@ -128,6 +131,14 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     
     override func numberOfSections(in tableView: UITableView) -> Int {
         1 + (self.peripheral?.signalChannels ?? 0)
+    }
+    
+    override func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cellHeights[indexPath] = cell.frame.size.height
+    }
+
+    override func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+        return cellHeights[indexPath] ?? UITableView.automaticDimension
     }
     
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
@@ -152,11 +163,66 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             switch indexPath.row {
             case 1:
                 LOGGER.debug("Selected start measurement ...")
-                ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
+                if let measurementState = self.peripheral?.activeMeasurement?.state {
+                    switch measurementState {
+                    case .initial:
+                        ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
+                    case .paused:
+                        ACTION_DISPATCH(action: ResumeMeasurement(peripheral: peripheral.cbp))
+                    case .running:
+                        ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
+                    case .ended:
+                        LOGGER.debug("Ignoring selection with ended active measurement on \(indexPath)")
+                    }
+                } else {
+                    ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
+                }
             case 2:
                 LOGGER.debug("Selected stop measurement ...")
-                ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
+                if let measurementState = self.peripheral?.activeMeasurement?.state {
+                    switch measurementState {
+                    case .initial:
+                        ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
+                    case .paused:
+                        ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
+                    case .running:
+                        ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
+                    case .ended:
+                        LOGGER.debug("Ignoring selection with ended active measurement on \(indexPath)")
+                    }
+                } else {
+                    LOGGER.debug("Ignoring selection without active measurement on \(indexPath)")
+                }
+            case 3:
+                LOGGER.debug("Selected save and export measurement ...")
+                if let measurement = peripheral.activeMeasurement,
+                    let hz = peripheral.signalHz {
+                    
+                    LOGGER.debug("Pausing for export from \(measurement.state)")
+                    
+                    // Pause
+                    ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
+                    
+                    DISPATCH.execute {
+                        // Archive
+                        guard let archive = measurement.archive(hz: Float(hz), rateScaler: 1) else {
+                            LOGGER.error("Cannot export archive because archiving failed")
+                            return
+                        }
+                        
+                        // AirDrop
+                        DispatchQueue.main.async {
+                            let controller = UIActivityViewController.init(activityItems: [archive], applicationActivities: nil)
+                            controller.excludedActivityTypes = [UIActivity.ActivityType.postToTwitter, UIActivity.ActivityType.postToFacebook, UIActivity.ActivityType.postToWeibo, UIActivity.ActivityType.message, UIActivity.ActivityType.print, UIActivity.ActivityType.copyToPasteboard, UIActivity.ActivityType.assignToContact, UIActivity.ActivityType.saveToCameraRoll, UIActivity.ActivityType.addToReadingList, UIActivity.ActivityType.postToFlickr,  UIActivity.ActivityType.postToVimeo, UIActivity.ActivityType.postToTencentWeibo]
+                            
+                            controller.popoverPresentationController?.sourceView = self.view
 
+                            self.present(controller, animated: true, completion: nil)
+                        }
+                    }
+                } else {
+                    LOGGER.debug("Ignoring selection without active measurement on \(indexPath)")
+                }
             default:
                 LOGGER.debug("Unhandled selection on first section at \(indexPath)")
                 break
@@ -180,17 +246,45 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 cell.textLabel?.text = "Battery Level"
                 cell.detailTextLabel?.text = peripheral.batteryLevel == nil ? "??%" : "\(peripheral.batteryLevel!)%"
             case 1:
-                cell.textLabel?.text = "Start"
-                cell.detailTextLabel?.text = cell.start?.getElapsedInterval()
+                if let measurementState = self.peripheral?.activeMeasurement?.state {
+                    switch measurementState {
+                    case .initial:
+                        cell.textLabel?.text = "Start"
+                    case .paused:
+                        cell.textLabel?.text = "Resume"
+                    case .running:
+                        cell.textLabel?.text = "Pause"
+                    case .ended:
+                        cell.textLabel?.text = "... Measurement already ended ..."
+
+                    }
+                } else {
+                    cell.textLabel?.text = "Start"
+                }
+                cell.detailTextLabel?.text = ""
             case 2:
                 cell.textLabel?.text = "End"
                 cell.detailTextLabel?.text = nil
             case 3:
-                cell.textLabel?.text = "Save"
-                cell.detailTextLabel?.text = "13MB"
-            case 4:
-                cell.textLabel?.text = "Export"
-                cell.detailTextLabel?.text = nil
+                if let measurement = self.peripheral?.activeMeasurement {
+                    let numSamplesPerChannel = Int(measurement.sampleCount)
+                    let totalSamples: Int = Int(measurement.signalChannels) * numSamplesPerChannel
+                    let numBytes = numSamplesPerChannel * 8 + totalSamples * 4; // a little bigger than storage size, not big enough to account for csv size
+                    switch numBytes {
+                    case 0...1024:
+                        cell.detailTextLabel?.text = "\(numBytes)B"
+                    case 1024...(1024*1024):
+                        cell.detailTextLabel?.text = "\(Int(numBytes / 1024))KB"
+                    case (1024*1024)...:
+                        cell.detailTextLabel?.text = "\(Int(numBytes / 1024 / 1024))MB"
+                    default:
+                        cell.detailTextLabel?.text = nil
+                    }
+                } else {
+                    cell.detailTextLabel?.text = nil
+                }
+                
+                cell.textLabel?.text = "Pause, Save, Export"
             default:
                 break
             }

@@ -13,6 +13,9 @@ import Toast
 class DeviceInfoVC: UITableViewController, StoreSubscriber {
     
     var peripheral: QSPeripheral?
+    var updateTs = Date()
+    var cellHeights: [IndexPath: CGFloat] = [:]
+
     
     let tablePaths: [IndexPath] = [
         // Qsib Sensor Central
@@ -38,9 +41,13 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
         tableView.allowsSelection = true
         tableView.allowsSelectionDuringEditing = false
         tableView.allowsMultipleSelection = false
+        
+        self.view.makeToastActivity(.center)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.view.hideToastActivity()
+        }
     }
 
-    
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         STORE.subscribe(self)
@@ -63,6 +70,11 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
         guard updateInfo else {
             return
         }
+        guard Date().timeIntervalSince(updateTs) > 1 else {
+            return
+        }
+        updateTs = Date()
+
         
         DispatchQueue.main.async { [self] in
             guard let peripheral = self.peripheral else {
@@ -134,6 +146,14 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
         }
     }
     
+    override func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cellHeights[indexPath] = cell.frame.size.height
+    }
+
+    override func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+        return cellHeights[indexPath] ?? UITableView.automaticDimension
+    }
+    
     override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         return false
     }
@@ -184,7 +204,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                 let storyboard = UIStoryboard(name: "Main", bundle: nil)
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
                 editorVC.headerLabelText = "Sample Hz"
-                editorVC.options = (0...7).map { "\(1 << $0)" }
+                editorVC.options = (0...15).map { "\(1 << $0)" }
                 if let signalHz = peripheral.signalHz {
                     editorVC.proposedValue = editorVC.options.firstIndex(of: "\(signalHz)") ?? 0
                     editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(signalHz)")

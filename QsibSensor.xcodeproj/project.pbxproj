@@ -32,6 +32,7 @@
 		06A86ABB2568312100B30115 /* NIOTestUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86ABA2568312100B30115 /* NIOTestUtils */; };
 		06A86ABD2568312100B30115 /* NIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86ABC2568312100B30115 /* NIO */; };
 		06A8B533256833BD00880CE8 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A8B532256833BD00880CE8 /* AppStore.swift */; };
+		06BA97BD2576B56C007FFB75 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 06BA97BC2576B56C007FFB75 /* ZIPFoundation */; };
 		06DC88EE256C1B70006A2B97 /* QSPeripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */; };
 /* End PBXBuildFile section */
 
@@ -76,6 +77,7 @@
 				06153A9825682C9100889A21 /* Charts in Frameworks */,
 				06A86AAF2568312100B30115 /* NIOTLS in Frameworks */,
 				06A86ABB2568312100B30115 /* NIOTestUtils in Frameworks */,
+				06BA97BD2576B56C007FFB75 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -161,6 +163,7 @@
 				06A86AB82568312100B30115 /* NIOConcurrencyHelpers */,
 				06A86ABA2568312100B30115 /* NIOTestUtils */,
 				06A86ABC2568312100B30115 /* NIO */,
+				06BA97BC2576B56C007FFB75 /* ZIPFoundation */,
 			);
 			productName = QsibSensor;
 			productReference = 068E70672565AC2F00673E32 /* QsibSensor.app */;
@@ -195,6 +198,7 @@
 				06153A9625682C9100889A21 /* XCRemoteSwiftPackageReference "Charts" */,
 				06153A9D25682D3300889A21 /* XCRemoteSwiftPackageReference "async-http-client" */,
 				06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */,
+				06BA97BB2576B56B007FFB75 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			productRefGroup = 068E70682565AC2F00673E32 /* Products */;
 			projectDirPath = "";
@@ -484,6 +488,14 @@
 				minimumVersion = 2.24.0;
 			};
 		};
+		06BA97BB2576B56B007FFB75 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.11;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -546,6 +558,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 06A86AAD2568312100B30115 /* XCRemoteSwiftPackageReference "swift-nio" */;
 			productName = NIO;
+		};
+		06BA97BC2576B56C007FFB75 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06BA97BB2576B56B007FFB75 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
