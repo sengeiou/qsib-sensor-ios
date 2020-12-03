@@ -219,7 +219,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
                 return
             }
                         
-            guard let samples = measurement.addPayload(data: action.signal) else {
+            guard let _ = measurement.addPayload(data: action.signal) else {
                 LOGGER.error("Failed to add payload to \(measurement)")
                 return
             }
@@ -296,6 +296,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .paused
         peripheral.activeMeasurement?.startStamp = nil
+        peripheral.activeMeasurement?.payloadCount = 0
         let data = Data([0x00])
         ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
     case let action as StopMeasurement:
@@ -303,6 +304,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         if let activeMeasurement = peripheral.activeMeasurement {
             peripheral.activeMeasurement?.state = .ended
             peripheral.activeMeasurement?.startStamp = nil
+            peripheral.activeMeasurement?.payloadCount = 0
             peripheral.finalizedMeasurements.append(activeMeasurement)
             peripheral.activeMeasurement = nil
             save(&state, peripheral)

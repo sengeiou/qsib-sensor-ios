@@ -45,6 +45,18 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     func handleConnectOnDiscovery(_ connectOnDiscovery: Bool) {
         self.centralManagerDidUpdateState(self.centralManager)
     }
+    
+    func setScan(doScan: Bool) {
+        if doScan {
+            LOGGER.info("Beginning scan for QSIB Sensor ...")
+            centralManager.scanForPeripherals(withServices: [QSIB_SENSOR_SERVICE_UUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
+            isScanning = true
+        } else {
+            LOGGER.info("Stopping scan for QSIB Sensor ...")
+            centralManager.stopScan()
+            isScanning = false
+        }
+    }
         
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
@@ -61,9 +73,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             isScanning = false
         case .poweredOn:
             LOGGER.info("CoreBluetooth CentralManager State = poweredOn")
-            LOGGER.info("Beginning scan for QSIB Sensor ...")
-            centralManager.scanForPeripherals(withServices: [QSIB_SENSOR_SERVICE_UUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
-            isScanning = true
+            setScan(doScan: true)
         default:
             LOGGER.info("CBCM UNEXPECTED UNHANDLED MANAGER STATE: \(central.state.rawValue)")
         }

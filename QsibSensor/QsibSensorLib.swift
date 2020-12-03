@@ -57,10 +57,10 @@ class QsMeasurement {
             return nil
         }
 
-        let counter = (UInt64(data[3])
-                        + (UInt64(data[4]) << (8 * 1))
-                        + (UInt64(data[5]) << (8 * 2))
-                        + (UInt64(data[6]) << (8 * 3)))
+        let counter = (UInt64(data[4])
+                        + (UInt64(data[5]) << (8 * 1))
+                        + (UInt64(data[6]) << (8 * 2))
+                        + (UInt64(data[7]) << (8 * 3)))
         if counter % 100 == 0 {
             LOGGER.trace("Found \(counter)th payload counter")
         }

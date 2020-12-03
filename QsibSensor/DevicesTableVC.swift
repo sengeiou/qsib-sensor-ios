@@ -86,7 +86,8 @@ class DevicesTable: UITableView {
 class DevicesTableVC: UITableViewController, StoreSubscriber {
     
     var peripherals: [QSPeripheral] = []
-
+    var updateTs: Date = Date()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -116,18 +117,12 @@ class DevicesTableVC: UITableViewController, StoreSubscriber {
             .values
             .sorted(by: { $0.name() < $1.name() })
         
+        guard Float(Date().timeIntervalSince(updateTs)) > 0.25 else {
+            return
+        }
+        updateTs = Date()
+        
         DispatchQueue.main.async {
-//            var reloadRequired = self.peripherals.count != peripherals.count
-//            for (index, (old, new)) in zip(self.peripherals, peripherals).enumerated() {
-//                if old.id() == new.id() {
-//                    if let deviceCell = self.tableView.cellForRow(at: IndexPath(row: index, section: 0)) as? AdvertisementTableViewCell {
-//                        deviceCell.updateContent(forPeripheral: new)
-//                    }
-//                } else {
-//                    reloadRequired = true
-//                }
-//            }
-            
             self.peripherals = peripherals
             self.tableView.reloadData()
         }
