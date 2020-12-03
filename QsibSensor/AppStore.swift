@@ -295,12 +295,14 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as PauseMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .paused
+        peripheral.activeMeasurement?.startStamp = nil
         let data = Data([0x00])
         ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
     case let action as StopMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         if let activeMeasurement = peripheral.activeMeasurement {
             peripheral.activeMeasurement?.state = .ended
+            peripheral.activeMeasurement?.startStamp = nil
             peripheral.finalizedMeasurements.append(activeMeasurement)
             peripheral.activeMeasurement = nil
             save(&state, peripheral)

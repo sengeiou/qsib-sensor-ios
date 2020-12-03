@@ -205,6 +205,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
                 editorVC.headerLabelText = "Sample Hz"
                 editorVC.options = (0...15).map { "\(1 << $0)" }
+                editorVC.options.append("\(256 * 14)")
                 if let signalHz = peripheral.signalHz {
                     editorVC.proposedValue = editorVC.options.firstIndex(of: "\(signalHz)") ?? 0
                     editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(signalHz)")

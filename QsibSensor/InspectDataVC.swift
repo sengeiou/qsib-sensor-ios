@@ -236,7 +236,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let peripheral = self.peripheral else {
             LOGGER.error("No peripheral to use to populate inspect data")
-            fatalError("No peripheral to use to populate inspect data")
+            self.dismiss(animated: true)
+            return tableView.dequeueReusableCell(withIdentifier: "controlcell0")!
         }
         switch indexPath.section {
         case 0:
@@ -250,18 +251,36 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     switch measurementState {
                     case .initial:
                         cell.textLabel?.text = "Start"
+                        cell.detailTextLabel?.text = ""
                     case .paused:
                         cell.textLabel?.text = "Resume"
+                        cell.detailTextLabel?.text = ""
                     case .running:
                         cell.textLabel?.text = "Pause"
+                        if let startStamp = self.peripheral?.activeMeasurement?.startStamp {
+                            let elapsed = Float(Date().timeIntervalSince(startStamp))
+                            let effectiveBytes = Float(self.peripheral?.activeMeasurement?.avgEffectivePayloadSize ?? 0.0) * Float(self.peripheral?.activeMeasurement?.payloadCount ?? 0)
+                            LOGGER.trace("\(self.peripheral?.activeMeasurement?.payloadCount ?? 0) payloads had \(self.peripheral?.activeMeasurement?.avgEffectivePayloadSize ?? 0.0) effective bytes in \(elapsed) seconds")
+                            let rate = Int(effectiveBytes / elapsed)
+                            switch rate {
+                            case 0...1024:
+                                cell.detailTextLabel?.text = "\(rate)B/s"
+                            case 1024...(1024*1024):
+                                cell.detailTextLabel?.text = "\(Int(rate / 1024))KB/s"
+                            case (1024*1024)...:
+                                cell.detailTextLabel?.text = "\(Int(rate / 1024 / 1024))MB/s"
+                            default:
+                                cell.detailTextLabel?.text = nil
+                            }
+                        }
                     case .ended:
                         cell.textLabel?.text = "... Measurement already ended ..."
-
+                        cell.detailTextLabel?.text = ""
                     }
                 } else {
                     cell.textLabel?.text = "Start"
+                    cell.detailTextLabel?.text = ""
                 }
-                cell.detailTextLabel?.text = ""
             case 2:
                 cell.textLabel?.text = "End"
                 cell.detailTextLabel?.text = nil

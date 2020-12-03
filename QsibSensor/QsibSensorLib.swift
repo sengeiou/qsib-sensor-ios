@@ -19,6 +19,9 @@ class QsMeasurement {
     let rs_id: UInt32
     let signalChannels: UInt8
     var sampleCount: UInt64
+    var payloadCount: UInt64
+    var startStamp: Date?
+    var avgEffectivePayloadSize: Float
     var state: MeasurementState
 
     var graphableTimestamps: [Double]?
@@ -29,7 +32,10 @@ class QsMeasurement {
         self.rs_id = qs_create_measurement(signalChannels)
         self.signalChannels = signalChannels
         self.sampleCount = 0
+        self.payloadCount = 0
         self.state = .initial
+        self.startStamp = nil
+        self.avgEffectivePayloadSize = 0
         LOGGER.trace("Allocated QsMeasurement \(self.rs_id)")
     }
     
@@ -50,16 +56,30 @@ class QsMeasurement {
             LOGGER.error("Payload buffer is too big to be valid")
             return nil
         }
-        let len = min(UInt8(data.count), data[0])
+
+        let counter = (UInt64(data[3])
+                        + (UInt64(data[4]) << (8 * 1))
+                        + (UInt64(data[5]) << (8 * 2))
+                        + (UInt64(data[6]) << (8 * 3)))
+        if counter % 100 == 0 {
+            LOGGER.trace("Found \(counter)th payload counter")
+        }
+        
+        let len = min(UInt16(data.count), UInt16(data[0]) + (UInt16(data[1]) << 8))
         
         var samples: UInt32? = nil
         data.withUnsafeBytes({ (buf_ptr: UnsafeRawBufferPointer) in
             let ptr = buf_ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-            samples = qs_add_signals(self.rs_id, ptr, len)
+            samples = qs_add_signals(self.rs_id, ptr, UInt16(len))
         })
         
 //        LOGGER.trace("Added \(String(describing: samples)) samples for \(self.sampleCount) total")
         sampleCount += UInt64(samples ?? 0)
+        payloadCount += 1
+        avgEffectivePayloadSize = (avgEffectivePayloadSize + Float(data.count - (2 + 1 + 4))) / 2
+        if state == .running && startStamp == nil {
+            startStamp = Date()
+        }
 
         return samples
     }
@@ -191,9 +211,10 @@ class QsMeasurement {
             return nil
         }
     
-        try? archive.addEntry(with: "channels.csv", type: .file, uncompressedSize: UInt32(uncompressedData.count), bufferSize: 4096, provider: { (position, size) -> Data in
+        try? archive.addEntry(with: "channels.csv", type: .file, uncompressedSize: UInt32(uncompressedData.count), modificationDate: Date(), permissions: nil, compressionMethod: .deflate, bufferSize: 4096, provider: { (position, size) -> Data in
             uncompressedData.subdata(in: position..<position+size)
         })
+        
         
         // Write the zip to a temporary file
         let directoryUrl = FileManager.default.temporaryDirectory
