@@ -203,6 +203,9 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     // Pause
                     ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
                     
+                    // Let the user know that we are working on it
+                    DispatchQueue.main.async { self.view.makeToastActivity(.center) }
+                    
                     DISPATCH.execute {
                         // Archive
                         guard let archive = measurement.archive(hz: Float(hz), rateScaler: 1) else {
@@ -212,6 +215,10 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                         
                         // AirDrop
                         DispatchQueue.main.async {
+                            // Done working remove activity indicator and
+                            self.view.hideToastActivity()
+                            
+                            // Show pop over activity
                             let controller = UIActivityViewController.init(activityItems: [archive], applicationActivities: nil)
                             controller.excludedActivityTypes = [UIActivity.ActivityType.postToTwitter, UIActivity.ActivityType.postToFacebook, UIActivity.ActivityType.postToWeibo, UIActivity.ActivityType.message, UIActivity.ActivityType.print, UIActivity.ActivityType.copyToPasteboard, UIActivity.ActivityType.assignToContact, UIActivity.ActivityType.saveToCameraRoll, UIActivity.ActivityType.addToReadingList, UIActivity.ActivityType.postToFlickr,  UIActivity.ActivityType.postToVimeo, UIActivity.ActivityType.postToTencentWeibo]
                             
