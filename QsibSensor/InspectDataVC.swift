@@ -123,7 +123,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
         case 0:
-            return 4
+            return 5
         default:
             return 1
         }
@@ -161,7 +161,11 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
         switch indexPath.section {
         case 0:
             switch indexPath.row {
-            case 1:
+            case 0:
+                LOGGER.debug("Selected turn off device ...")
+                ACTION_DISPATCH(action: TurnOffSensor(peripheral: peripheral.cbp))
+                self.dismiss(animated: true)
+            case 2:
                 LOGGER.debug("Selected start measurement ...")
                 if let measurementState = self.peripheral?.activeMeasurement?.state {
                     switch measurementState {
@@ -177,7 +181,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 } else {
                     ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
                 }
-            case 2:
+            case 3:
                 LOGGER.debug("Selected stop measurement ...")
                 if let measurementState = self.peripheral?.activeMeasurement?.state {
                     switch measurementState {
@@ -193,7 +197,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 } else {
                     LOGGER.debug("Ignoring selection without active measurement on \(indexPath)")
                 }
-            case 3:
+            case 4:
                 LOGGER.debug("Selected save and export measurement ...")
                 if let measurement = peripheral.activeMeasurement,
                     let hz = peripheral.signalHz {
@@ -251,9 +255,12 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             let cell = tableView.dequeueReusableCell(withIdentifier: "controlcell0") as! ControlCell
             switch indexPath.row {
             case 0:
+                cell.textLabel?.text = "Turn Off Sensor"
+                cell.detailTextLabel?.text = ""
+            case 1:
                 cell.textLabel?.text = "Battery Level"
                 cell.detailTextLabel?.text = peripheral.batteryLevel == nil ? "??%" : "\(peripheral.batteryLevel!)%"
-            case 1:
+            case 2:
                 if let measurementState = self.peripheral?.activeMeasurement?.state {
                     switch measurementState {
                     case .initial:
@@ -288,14 +295,14 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     cell.textLabel?.text = "Start"
                     cell.detailTextLabel?.text = ""
                 }
-            case 2:
+            case 3:
                 cell.textLabel?.text = "End"
                 cell.detailTextLabel?.text = nil
-            case 3:
+            case 4:
                 if let measurement = self.peripheral?.activeMeasurement {
                     let numSamplesPerChannel = Int(measurement.sampleCount)
                     let totalSamples: Int = Int(measurement.signalChannels) * numSamplesPerChannel
-                    let numBytes = numSamplesPerChannel * 8 + totalSamples * 4; // a little bigger than storage size, not big enough to account for csv size
+                    let numBytes = numSamplesPerChannel * 8 + totalSamples * 8; // a little bigger than storage size, not big enough to account for csv size
                     switch numBytes {
                     case 0...1024:
                         cell.detailTextLabel?.text = "\(numBytes)B"

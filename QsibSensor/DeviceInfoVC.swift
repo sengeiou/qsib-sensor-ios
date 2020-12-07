@@ -43,7 +43,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
         tableView.allowsMultipleSelection = false
         
         self.view.makeToastActivity(.center)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.view.hideToastActivity()
         }
     }
@@ -70,7 +70,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
         guard updateInfo else {
             return
         }
-        guard Date().timeIntervalSince(updateTs) > 1 else {
+        guard Float(Date().timeIntervalSince(updateTs)) > 0.25 else {
             return
         }
         updateTs = Date()
@@ -174,7 +174,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                 let storyboard = UIStoryboard(name: "Main", bundle: nil)
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
                 editorVC.headerLabelText = "Project Mode"
-                editorVC.options = ["Milk Sensor v0", "Multiwavelength PPG v1"]
+                editorVC.options = ["Shunt Monitor v2", "Milk Sensor v0", "Multiwavelength PPG v2"]
                 if let projectMode = peripheral.projectMode {
                     editorVC.proposedValue = editorVC.options.firstIndex(of: "\(projectMode)") ?? 0
                     editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(projectMode)")

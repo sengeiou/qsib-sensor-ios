@@ -155,6 +155,10 @@ struct StopMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
+struct TurnOffSensor: Action {
+    let peripheral: CBPeripheral
+}
+
 struct RequestUpdateGraphables: Action {
     let peripheral: CBPeripheral
 }
@@ -313,6 +317,12 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         } else {
             LOGGER.trace("No active measurement to stop")
         }
+    case let action as TurnOffSensor:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.activeMeasurement?.state = .running
+        peripheral.rssi = -100
+        let data = Data([0xDE, 0xAD, 0xBE, 0xEF]).prefix(4)
+        ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
     case let action as RequestUpdateGraphables:
         let peripheral = getPeripheral(&state, action.peripheral)
         if let measurement = peripheral.activeMeasurement {
