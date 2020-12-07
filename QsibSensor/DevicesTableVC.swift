@@ -50,7 +50,14 @@ class AdvertisementTableViewCell: UITableViewCell {
         var rssiLabelText = "RSSI: --- dBm"
         if let rssi = newPeripheral.displayRssi() {
             rssiLabelText = "RSSI: \(rssi) dBm"
-            tintColor = rssi > -70 ? .systemBlue : .systemYellow
+            switch rssi {
+            case -70 ... 0:
+                tintColor = .systemBlue
+            case -99 ..< -70:
+                tintColor = .systemYellow
+            default:
+                tintColor = .systemRed
+            }
         }
         
         var connectButtonText = "Connect"
