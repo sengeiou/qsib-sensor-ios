@@ -120,17 +120,36 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
         }
     }
     
+    func isProjectConfigged() -> Bool {
+        return [MWV_PPG_V2].contains(self.peripheral?.projectMode)
+    }
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
         case 0:
             return 5
         default:
-            return 1
+            if isProjectConfigged() {
+                switch self.peripheral?.projectMode ?? "" {
+                case MWV_PPG_V2:
+                    return 1
+                default:
+                    return 1
+                }
+            } else {
+                return 1
+            }
         }
     }
     
     override func numberOfSections(in tableView: UITableView) -> Int {
-        1 + (self.peripheral?.signalChannels ?? 0)
+        let baseSections = 1 + (self.peripheral?.signalChannels ?? 0)
+        switch self.peripheral?.projectMode ?? "" {
+        case MWV_PPG_V2:
+            return baseSections
+        default:
+            return baseSections
+        }
     }
     
     override func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
@@ -146,7 +165,16 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
         case 0:
             return "Control"
         default:
-            return "Channel \(section - 1)"
+            if isProjectConfigged() {
+                switch self.peripheral?.projectMode ?? "" {
+                case MWV_PPG_V2:
+                    return "Channel \(section - 1)"
+                default:
+                    return "Channel \(section - 1)"
+                }
+            } else {
+                return "Channel \(section - 1)"
+            }
         }
     }
     

@@ -1,0 +1,13 @@
+{
+    "sourcekit-lsp.serverArguments": [
+        "-Xswiftc",
+        "-sdk",
+        "-Xswiftc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
+        "-Xswiftc",
+        "-target",
+        "-Xswiftc",
+        "arm64-apple-ios14.3-simulator",
+        ],
+        
+}

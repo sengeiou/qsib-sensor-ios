@@ -17,22 +17,25 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
     var cellHeights: [IndexPath: CGFloat] = [:]
 
     
-    let tablePaths: [IndexPath] = [
+    var tablePaths: [IndexPath] = [
         // Qsib Sensor Central
         IndexPath(row: 0, section: 0), // Project Mode
         IndexPath(row: 1, section: 0), // Signal Interpretation
         IndexPath(row: 2, section: 0), // Signal Interpretation :: Sample Rate
         IndexPath(row: 3, section: 0), // Signal Interpretation :: Channels
         
+        // Project Specific
+        // IndexPaths ...
+        
         // Qsib Sensor Service Peripheral
-        IndexPath(row: 0, section: 1), // Control
-        IndexPath(row: 1, section: 1), // Signal
-        IndexPath(row: 2, section: 1), // Firmware Version
-        IndexPath(row: 3, section: 1), // Hardware Version
-        IndexPath(row: 4, section: 1), // Error
-        IndexPath(row: 5, section: 1), // Name
-        IndexPath(row: 6, section: 1), // Unique Identifier
-        IndexPath(row: 7, section: 1), // Boot Count
+        IndexPath(row: 0, section: 2), // Control
+        IndexPath(row: 1, section: 2), // Signal
+        IndexPath(row: 2, section: 2), // Firmware Version
+        IndexPath(row: 3, section: 2), // Hardware Version
+        IndexPath(row: 4, section: 2), // Error
+        IndexPath(row: 5, section: 2), // Name
+        IndexPath(row: 6, section: 2), // Unique Identifier
+        IndexPath(row: 7, section: 2), // Boot Count
     ]
     
     override func viewDidLoad() {
@@ -77,70 +80,77 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
 
         
         DispatchQueue.main.async { [self] in
-            guard let peripheral = self.peripheral else {
-                LOGGER.error("Cannot update device info without ")
-                return
-            }
+//            guard let peripheral = self.peripheral else {
+//                LOGGER.error("Cannot update device info without ")
+//                return
+//            }
             
-            for indexPath in tablePaths {
-                switch indexPath.section {
-                case 0:
-                    // QSIB Sensor Central Rows
-                    switch indexPath.row {
-                    case 0:
-                        let projectModeCell = tableView.cellForRow(at: indexPath)
-                        projectModeCell?.detailTextLabel?.text = peripheral.projectMode ?? "Undefined"
-                    case 1:
-                        break
-                    case 2:
-                        let sampleRateCell = tableView.cellForRow(at: indexPath)
-                        sampleRateCell?.detailTextLabel?.text = peripheral.signalHz == nil ? "_ Hz" : "\(peripheral.signalHz!) Hz"
-                    case 3:
-                        let channelCell = tableView.cellForRow(at: indexPath)
-                        channelCell?.detailTextLabel?.text = peripheral.signalChannels == nil ? "_" : "\(peripheral.signalChannels!)"
-                    default:
-                        fatalError("Invalid row selection for \(indexPath)")
-                    }
-                case 1:
-                    // QSIB Sensor Service Rows
-                    switch indexPath.row {
-                    case 0:
-                        break
-                    case 1:
-                        break
-                    case 2:
-                        let firmwareVersionCell = tableView.cellForRow(at: indexPath)
-                        firmwareVersionCell?.detailTextLabel?.text = peripheral.firmwareVersion
-                    case 3:
-                        let hardwareVersionCell = tableView.cellForRow(at: indexPath)
-                        hardwareVersionCell?.detailTextLabel?.text = peripheral.hardwareVersion
-                    case 4:
-                        let errorCell = tableView.cellForRow(at: indexPath)
-                        if peripheral.error == nil || peripheral.error!.isEmpty {
-                            errorCell?.detailTextLabel?.text = "none"
-
-                        } else {
-                            errorCell?.detailTextLabel?.text = peripheral.error
-                        }
-                    case 5:
-                        let nameCell = tableView.cellForRow(at: indexPath)
-                        nameCell?.detailTextLabel?.text = peripheral.name()
-                        break
-                    case 6:
-                        let uuidCell = tableView.cellForRow(at: indexPath)
-                        uuidCell?.detailTextLabel?.text = peripheral.uniqueIdentifier
-                        break
-                    case 7:
-                        let bootCountCell = tableView.cellForRow(at: indexPath)
-                        bootCountCell?.detailTextLabel?.text = "\(peripheral.bootCount ?? 0)"
-                        break
-                    default:
-                        fatalError("Invalid row selection for \(indexPath)")
-                    }
-                default:
-                    fatalError("Invalid section selection for \(indexPath)")
-                }
-            }
+//            for indexPath in tablePaths {
+//                switch indexPath.section {
+//                case 0:
+//                    // QSIB Sensor Central Rows
+//                    switch indexPath.row {
+//                    case 0:
+//                        let projectModeCell = tableView.cellForRow(at: indexPath)
+//                        projectModeCell?.detailTextLabel?.text = peripheral.projectMode ?? "Undefined"
+//                    case 1:
+//                        break
+//                    case 2:
+//                        let sampleRateCell = tableView.cellForRow(at: indexPath)
+//                        sampleRateCell?.detailTextLabel?.text = peripheral.signalHz == nil ? "_ Hz" : "\(peripheral.signalHz!) Hz"
+//                    case 3:
+//                        let channelCell = tableView.cellForRow(at: indexPath)
+//                        channelCell?.detailTextLabel?.text = peripheral.signalChannels == nil ? "_" : "\(peripheral.signalChannels!)"
+//                    default:
+//                        fatalError("Invalid row selection for \(indexPath)")
+//                    }
+//                case 1:
+//                    switch self.peripheral?.projectMode ?? "" {
+//                    case MWV_PPG_V2:
+//                        break
+//                    default:
+//                        break
+//                    }
+//                case 2:
+//                    // QSIB Sensor Service Rows
+//                    switch indexPath.row {
+//                    case 0:
+//                        break
+//                    case 1:
+//                        break
+//                    case 2:
+//                        let firmwareVersionCell = tableView.cellForRow(at: indexPath)
+//                        firmwareVersionCell?.detailTextLabel?.text = peripheral.firmwareVersion
+//                    case 3:
+//                        let hardwareVersionCell = tableView.cellForRow(at: indexPath)
+//                        hardwareVersionCell?.detailTextLabel?.text = peripheral.hardwareVersion
+//                    case 4:
+//                        let errorCell = tableView.cellForRow(at: indexPath)
+//                        if peripheral.error == nil || peripheral.error!.isEmpty {
+//                            errorCell?.detailTextLabel?.text = "none"
+//
+//                        } else {
+//                            errorCell?.detailTextLabel?.text = peripheral.error
+//                        }
+//                    case 5:
+//                        let nameCell = tableView.cellForRow(at: indexPath)
+//                        nameCell?.detailTextLabel?.text = peripheral.name()
+//                        break
+//                    case 6:
+//                        let uuidCell = tableView.cellForRow(at: indexPath)
+//                        uuidCell?.detailTextLabel?.text = peripheral.uniqueIdentifier
+//                        break
+//                    case 7:
+//                        let bootCountCell = tableView.cellForRow(at: indexPath)
+//                        bootCountCell?.detailTextLabel?.text = "\(peripheral.bootCount ?? 0)"
+//                        break
+//                    default:
+//                        fatalError("Invalid row selection for \(indexPath)")
+//                    }
+//                default:
+//                    fatalError("Invalid section selection for \(indexPath)")
+//                }
+//            }
             
             tableView.reloadData()
         }
@@ -161,7 +171,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         guard let peripheral = self.peripheral else {
-            LOGGER.error("Cannot update device info without ")
+            LOGGER.error("Cannot update device info without peripheral")
             return
         }
 
@@ -174,7 +184,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                 let storyboard = UIStoryboard(name: "Main", bundle: nil)
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
                 editorVC.headerLabelText = "Project Mode"
-                editorVC.options = ["Shunt Monitor v2", "Milk Sensor v0", "Multiwavelength PPG v2"]
+                editorVC.options = ["Shunt Monitor v2", "Milk Sensor v0", MWV_PPG_V2]
                 if let projectMode = peripheral.projectMode {
                     editorVC.proposedValue = editorVC.options.firstIndex(of: "\(projectMode)") ?? 0
                     editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(projectMode)")
@@ -265,7 +275,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
             default:
                 fatalError("Invalid row selection for \(indexPath)")
             }
-        case 1:
+        case 2:
             // QSIB Sensor Service Rows
             switch indexPath.row {
             case 0:

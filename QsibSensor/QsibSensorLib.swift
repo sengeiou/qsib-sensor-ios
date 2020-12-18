@@ -52,7 +52,7 @@ class QsMeasurement {
             return nil
         }
         
-        guard data.count < 255 else {
+        guard data.count <= 2000 else {
             LOGGER.error("Payload buffer is too big to be valid")
             return nil
         }
@@ -62,7 +62,7 @@ class QsMeasurement {
                         + (UInt64(data[6]) << (8 * 2))
                         + (UInt64(data[7]) << (8 * 3)))
         if counter % 100 == 0 {
-            LOGGER.trace("Found \(counter)th payload counter")
+            LOGGER.trace("Found \(counter)th payload counter on a payload of \(data.count) bytes")
         }
         
         let len = min(UInt16(data.count), UInt16(data[0]) + (UInt16(data[1]) << 8))

@@ -9,6 +9,9 @@ import Foundation
 import CoreBluetooth
 import Toast
 
+
+let MWV_PPG_V2 = "Mutliwavelength PPG V2"
+
 class QSPeripheralCodableState: Codable {
     var projectMode: String?
     var signalHz: Int?
