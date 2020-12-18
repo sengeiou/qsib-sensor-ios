@@ -194,7 +194,9 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         case QSS_CONTROL_UUID:
             LOGGER.trace("Updated QSS_CONTROL_UUID: \(QSS_CONTROL_UUID) :: \(characteristic.value!.hexEncodedString())")
         case QSS_SIGNAL_UUID:
-            ACTION_DISPATCH(action: DidUpdateValueForSignal(peripheral: peripheral, signal: characteristic.value!))
+            if let value = characteristic.value {
+                ACTION_DISPATCH(action: DidUpdateValueForSignal(peripheral: peripheral, signal: value))
+            }
         case QSS_FIRMWARE_VERSION_UUID:
             let firmwareVersion = String(data: characteristic.value!, encoding: .utf8) ?? "invalid"
             LOGGER.trace("Updated QSS_FIRMWARE_VERSION_UUID: \(QSS_FIRMWARE_VERSION_UUID) :: \(firmwareVersion)")

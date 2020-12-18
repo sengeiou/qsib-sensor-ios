@@ -11,6 +11,24 @@ import Toast
 
 
 let MWV_PPG_V2 = "Mutliwavelength PPG V2"
+let SHUNT_MONITOR_V1 = "Shunt Monitor V1"
+
+
+class MwvPpgV2ModeCodableState: Codable {
+    var mode: String?
+    var atime: Int?
+    var astep: Int?
+    var again: Int?
+    var wcycles: Int?
+    var drive: Int?
+}
+
+class ProjectCodableState: Codable {
+    var version: Int = 1
+    var defaultMode: String?
+    
+    var mwv_ppg_v2_modes: [String: MwvPpgV2ModeCodableState]?
+}
 
 class QSPeripheralCodableState: Codable {
     var projectMode: String?
@@ -21,6 +39,8 @@ class QSPeripheralCodableState: Codable {
     var hardwareVersion: String?
     var persistedName: String?
     var uniqueIdentifier: String?
+
+    var projects: [String: ProjectCodableState] = [:]
         
     init(
         _ projectMode: String?,
@@ -30,7 +50,9 @@ class QSPeripheralCodableState: Codable {
         _ firmwareVersion: String?,
         _ hardwareVersion: String?,
         _ persistedName: String?,
-        _ uniqueIdentifier: String?
+        _ uniqueIdentifier: String?,
+
+        _ projects: [String: ProjectCodableState]
     ) {
         self.projectMode = projectMode
         self.signalHz = signalHz
@@ -40,6 +62,8 @@ class QSPeripheralCodableState: Codable {
         self.hardwareVersion = hardwareVersion
         self.persistedName = persistedName
         self.uniqueIdentifier = uniqueIdentifier
+
+        self.projects = projects
     }
 }
 
@@ -65,6 +89,8 @@ class QSPeripheral {
     
     var activeMeasurement: QsMeasurement?
     var finalizedMeasurements: [QsMeasurement] = []
+
+    var projects: [String: ProjectCodableState] = [:]
     
     public init(peripheral: CBPeripheral, rssi: NSNumber) {
         self.set(peripheral: peripheral, rssi: rssi)
@@ -90,7 +116,7 @@ class QSPeripheral {
         hardwareVersion = state.hardwareVersion
         persistedName = state.persistedName
         uniqueIdentifier = state.uniqueIdentifier
-
+        projects = state.projects
     }
     
     public func save() {
@@ -101,7 +127,8 @@ class QSPeripheral {
             firmwareVersion,
             hardwareVersion,
             persistedName,
-            uniqueIdentifier)
+            uniqueIdentifier,
+            projects)
         
         if let json = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(json, forKey: id().uuidString)
@@ -171,5 +198,81 @@ class QSPeripheral {
             ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Cannot update characteristic", duration: TimeInterval(2), position: .center, title: "Internal BLE Error", image: nil, style: ToastStyle(), completion: nil)))
         }
     }
+    
+    public func pause() {}
+    public func stop() {}
+    public func reset() {}
 
+    /*!
+     * Write the control message for the PPG sensor.
+     * At V2 the following packed struct is expected as the value
+
+        enum class mwv_ppg_cmd_e: uint8_t {
+            NOP    = 0,
+            ALTER  = 1
+        };
+
+        enum class mwv_ppg_mode_e: uint8_t {
+            OFF    = 0,
+            MODE_0 = 1,
+            MODE_1 = 2,
+            MODE_2 = 3,
+            MODE_3 = 4
+        };
+
+        struct mwv_ppg_qss_control_t {
+            mwv_ppg_cmd_e command = mwv_ppg_cmd_e::NOP;
+            mwv_ppg_mode_e mode = mwv_ppg_mode_e::OFF;
+            uint8_t atime = drivers::as7341::config_t::ATIME_RECOMMENDED;
+            uint16_t astep = drivers::as7341::config_t::ASTEP_RECOMMENDED;
+            uint8_t again = drivers::as7341::config_t::AGAIN_RECOMMENDED;
+            uint8_t wcycles = drivers::as7341::config_t::WTIME_500MS;
+            uint8_t drive = drivers::as7341::config_t::DEFAULT_LED_DRIVE;
+        };
+    
+     */
+    public func writeProjectControlForPpg() {
+        if let mode = projects[MWV_PPG_V2]?.defaultMode,
+            let modeInfo = projects[MWV_PPG_V2]?.mwv_ppg_v2_modes?[mode],
+            let atime = modeInfo.atime,
+            let astep = modeInfo.astep,
+            let again = modeInfo.again,
+            let wcycles = modeInfo.wcycles,
+            let drive = modeInfo.drive {
+
+            var enumMode = 0
+            switch mode {
+            case "IDLE":
+                enumMode = 0
+            case "MODE 0":
+                enumMode = 1
+            case "MODE 1":
+                enumMode = 2
+            case "MODE 2":
+                enumMode = 3
+            case "MODE 3":
+                enumMode = 4
+            default:
+                LOGGER.error("Invalid mode \(mode)")
+            }
+
+            let data = Data([
+                UInt8(0x01),                        // Command
+                UInt8(enumMode),                    // Mode
+                UInt8(atime),                       // ATIME
+                UInt8((UInt16(astep) >> 8) & 0xFF), // ASTEP H
+                UInt8((UInt16(astep) & 0xFF)),      // ASTEP L
+                UInt8(again),                       // AGAIN
+                UInt8(wcycles),                     // WCYCLES
+                UInt8(drive)                        // DRIVE
+                ])
+            writeControl(data: data)
+        } else {
+            LOGGER.error("Not enough info set to write control for MWV PPG")
+        }
+    }
+
+    public func writeProjectControlForShuntMonitor() {
+        LOGGER.error("Not implemented yet")
+    }
 }

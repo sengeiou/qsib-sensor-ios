@@ -184,6 +184,11 @@ struct ProcessToast: Action {}
 
 struct Tick: Action {}
 
+struct IssueControlWriteFor: Action {
+    let peripheral: CBPeripheral
+    let projectMode: String
+}
+
 func appReducer(action: Action, state: AppState?) -> AppState {
     var state = state ?? AppState()
     
@@ -323,6 +328,16 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         peripheral.rssi = -100
         let data = Data([0xDE, 0xAD, 0xBE, 0xEF]).prefix(4)
         ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+    case let action as IssueControlWriteFor:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        switch action.projectMode {
+        case MWV_PPG_V2:
+            peripheral.writeProjectControlForPpg()
+        case SHUNT_MONITOR_V1:
+            peripheral.writeProjectControlForShuntMonitor()
+        default:
+            LOGGER.error("Don't know how to handle control writes for projectMode \(action.projectMode)")
+        }
     case let action as RequestUpdateGraphables:
         let peripheral = getPeripheral(&state, action.peripheral)
         if let measurement = peripheral.activeMeasurement {

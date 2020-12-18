@@ -129,10 +129,20 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
         case 0:
             return 5
         default:
-            if isProjectConfigged() {
+            if isProjectConfigged() && section == 1 {
                 switch self.peripheral?.projectMode ?? "" {
                 case MWV_PPG_V2:
-                    return 1
+                    // Could add rows for the section specific to mwv_ppg_v2
+                    // switch indexPath.row {
+                    //     case 0: break // Mode
+                    //     case 1: break // atime
+                    //     case 2: break // astep
+                    //     case 3: break // again
+                    //     case 4: break // wcycles
+                    //     case 5: break // drive
+                    //     case 6: break // Apply
+                    // }
+                    return 7
                 default:
                     return 1
                 }
@@ -146,7 +156,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
         let baseSections = 1 + (self.peripheral?.signalChannels ?? 0)
         switch self.peripheral?.projectMode ?? "" {
         case MWV_PPG_V2:
-            return baseSections
+            // Add 1 section for configuration of measurement
+            return baseSections + 1
         default:
             return baseSections
         }
@@ -165,10 +176,10 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
         case 0:
             return "Control"
         default:
-            if isProjectConfigged() {
+            if isProjectConfigged() && section == 1 {
                 switch self.peripheral?.projectMode ?? "" {
                 case MWV_PPG_V2:
-                    return "Channel \(section - 1)"
+                    return "\(MWV_PPG_V2) Config"
                 default:
                     return "Channel \(section - 1)"
                 }
@@ -266,6 +277,24 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 LOGGER.debug("Unhandled selection on first section at \(indexPath)")
                 break
             }
+        case 1:
+            if isProjectConfigged() {
+                switch self.peripheral?.projectMode ?? "" {
+                case MWV_PPG_V2:
+                    switch indexPath.row {
+                    case 6:
+                        LOGGER.debug("Handling apply mode config selection")
+                        
+                        ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: MWV_PPG_V2))
+                    default:
+                        LOGGER.debug("Ignoring selection of \(indexPath)")
+                    }
+                default:
+                    LOGGER.error("Unhandled selection at \(indexPath)")
+                }
+            } else {
+                LOGGER.debug("Unhandled selection at \(indexPath)")
+            }
         default:
             LOGGER.debug("Unhandled selection at \(indexPath)")
             break
@@ -351,30 +380,66 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             }
             return cell
         default:
-            let cell = tableView.dequeueReusableCell(withIdentifier: "channelcell0", for: indexPath) as! ChannelCell
-            guard let activeMeasurement = self.peripheral?.activeMeasurement else {
-                cell.chartView.data = nil
+            if isProjectConfigged() && indexPath.section == 1 {
+                let cell = tableView.dequeueReusableCell(withIdentifier: "controlcell0", for: indexPath) as! ControlCell
+                switch self.peripheral?.projectMode ?? "" {
+                case MWV_PPG_V2:
+                    switch indexPath.row {
+                    case 0: // Mode
+                        cell.textLabel?.text = "Mode"
+                        cell.detailTextLabel?.text = "IDLE"
+                    case 1:
+                        cell.textLabel?.text = "Step time (ATIME)"
+                        cell.detailTextLabel?.text = "29 (2.78us cycles)"
+                    case 2:
+                        cell.textLabel?.text = "Integration steps (ASTEP)"
+                        cell.detailTextLabel?.text = "599 steps"
+                    case 3:
+                        cell.textLabel?.text = "Gain (AGAIN)"
+                        cell.detailTextLabel?.text = "256x"
+                    case 4:
+                        cell.textLabel?.text = "Wait cycles (determines WTIME)"
+                        cell.detailTextLabel?.text = "179 (2.78ms cycles)"
+                    case 5:
+                        cell.textLabel?.text = "LED Drive"
+                        cell.detailTextLabel?.text = "12 mA"
+                    case 6:
+                        cell.textLabel?.text = "Apply"
+                        cell.detailTextLabel?.text = ""
+                    default:
+                        LOGGER.error("Unhandled row")
+                        break
+                    }
+                default:
+                    LOGGER.error("Unhandled section")
+                }
                 return cell
-            }
-            
-            if indexPath.section - 1 > activeMeasurement.signalChannels {
-                LOGGER.error("Cannot populate data for channel that the active measurement is not configured to have")
-                fatalError("Cannot populate data for channel that the active measurement is not configured to have")
-            }
-            
-            guard let graphableTimestamps = activeMeasurement.graphableTimestamps,
-                  let graphableChannels = activeMeasurement.graphableChannels else {
-                return cell
-            }
+            } else {
+                let cell = tableView.dequeueReusableCell(withIdentifier: "channelcell0", for: indexPath) as! ChannelCell
+                guard let activeMeasurement = self.peripheral?.activeMeasurement else {
+                    cell.chartView.data = nil
+                    return cell
+                }
+                
+                if indexPath.section - 1 > activeMeasurement.signalChannels {
+                    LOGGER.error("Cannot populate data for channel that the active measurement is not configured to have")
+                    fatalError("Cannot populate data for channel that the active measurement is not configured to have")
+                }
+                
+                guard let graphableTimestamps = activeMeasurement.graphableTimestamps,
+                    let graphableChannels = activeMeasurement.graphableChannels else {
+                    return cell
+                }
 
-            cell.timestamps = graphableTimestamps
-            cell.channel = graphableChannels[indexPath.section - 1]
-            LOGGER.trace("Updating channel \(indexPath.section - 1) with \(cell.timestamps.count) (\(cell.channel.count)) values")
-            cell.dataLabel = "SAADC Samples (mV)"
-            cell.colorIndex = indexPath.section
-            cell.chartView.delegate = cell
-            cell.updateChartView()
-            return cell
+                cell.timestamps = graphableTimestamps
+                cell.channel = graphableChannels[indexPath.section - 1]
+                LOGGER.trace("Updating channel \(indexPath.section - 1) with \(cell.timestamps.count) (\(cell.channel.count)) values")
+                cell.dataLabel = "SAADC Samples (mV)"
+                cell.colorIndex = indexPath.section
+                cell.chartView.delegate = cell
+                cell.updateChartView()
+                return cell
+            }
         }
     }
 }
