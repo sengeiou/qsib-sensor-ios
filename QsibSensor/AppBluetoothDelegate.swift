@@ -96,13 +96,13 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        LOGGER.debug("didDisconnectPeripheral: \(peripheral) with error: \(String(describing: error))")
+        LOGGER.debug("didDisconnectPeripheral: \(peripheral) with: \(String(describing: error))")
         
         ACTION_DISPATCH(action: DidDisconnect(peripheral: peripheral))
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        LOGGER.debug("didFailToConnect peripheral: \(peripheral) with error: \(String(describing: error))")
+        LOGGER.debug("didFailToConnect peripheral: \(peripheral) with: \(String(describing: error))")
         
         ACTION_DISPATCH(action: DidFailToConnect(peripheral: peripheral))
 
@@ -110,7 +110,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        LOGGER.debug("Discovered services \(peripheral.services!) with error: \(String(describing: error))")
+        LOGGER.debug("Discovered services \(peripheral.services!) with: \(String(describing: error))")
         for service in peripheral.services! {
             if service.uuid == BATTERY_SERVICE_UUID {
                 LOGGER.debug("Discovering services for BATTERY_SERVICE_UUID: \(BATTERY_SERVICE_UUID)")
@@ -178,7 +178,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     }
     
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-        LOGGER.trace("Wrote value for characteristic: \(characteristic) with error: \(String(describing: error))")
+        LOGGER.trace("Wrote value for characteristic: \(characteristic) with: \(String(describing: error))")
         if let error = error {
             LOGGER.error("Encountered error writing to characteristic: \(error)")
         } else {

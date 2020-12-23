@@ -199,17 +199,35 @@ class QSPeripheral {
         }
     }
     
-    public func pause() {}
-    public func stop() {}
-    public func reset() {}
-
+    public func pause() {
+        let data = Data([
+            UInt8(0x01),                        // Command
+            UInt8(0),                           // Mode
+            UInt8(0),                           // ATIME
+            UInt8(0),                           // ASTEP H
+            UInt8(0),                           // ASTEP L
+            UInt8(0),                           // AGAIN
+            UInt8(0),                           // WCYCLES
+            UInt8(0)                            // DRIVE
+            ])
+        writeControl(data: data)
+    }
+    
+    public func turnOff() {
+        let data = Data(repeating: 0xFF, count: 23)
+        writeControl(data: data)
+    }
+    
     /*!
      * Write the control message for the PPG sensor.
      * At V2 the following packed struct is expected as the value
 
         enum class mwv_ppg_cmd_e: uint8_t {
-            NOP    = 0,
-            ALTER  = 1
+            NOP    = 0, // Common across projects
+            PAUSE  = 1, // Common across projects
+            ALTER  = 2, // Begin mwv_ppg_cmd_e commands
+     
+            OFF    = 0xFF, // OFF = control_msg of 0xFF's for whole message
         };
 
         enum class mwv_ppg_mode_e: uint8_t {
@@ -257,11 +275,11 @@ class QSPeripheral {
             }
 
             let data = Data([
-                UInt8(0x01),                        // Command
+                UInt8(0x02),                        // Command
                 UInt8(enumMode),                    // Mode
                 UInt8(atime),                       // ATIME
-                UInt8((UInt16(astep) >> 8) & 0xFF), // ASTEP H
                 UInt8((UInt16(astep) & 0xFF)),      // ASTEP L
+                UInt8((UInt16(astep) >> 8) & 0xFF), // ASTEP H
                 UInt8(again),                       // AGAIN
                 UInt8(wcycles),                     // WCYCLES
                 UInt8(drive)                        // DRIVE
@@ -273,6 +291,75 @@ class QSPeripheral {
     }
 
     public func writeProjectControlForShuntMonitor() {
-        LOGGER.error("Not implemented yet")
+        let data = Data([0x69])
+        writeControl(data: data)
+    }
+    
+    public func getOrDefaultProject() -> ProjectCodableState {
+        switch projectMode ?? "" {
+        case MWV_PPG_V2:
+            if projects[MWV_PPG_V2] == nil {
+                let projectState = ProjectCodableState()
+                projectState.defaultMode = "IDLE"
+                projectState.mwv_ppg_v2_modes = [:]
+                
+                let idleState = MwvPpgV2ModeCodableState()
+                idleState.mode = "IDLE"
+                idleState.atime = 29
+                idleState.astep = 599
+                idleState.again = 9
+                idleState.wcycles = 179
+                idleState.drive = 4
+                projectState.mwv_ppg_v2_modes![idleState.mode!] = idleState
+                
+                let mode0State = MwvPpgV2ModeCodableState()
+                mode0State.mode = "MODE 0"
+                mode0State.atime = 29
+                mode0State.astep = 599
+                mode0State.again = 9
+                mode0State.wcycles = 179
+                mode0State.drive = 4
+                projectState.mwv_ppg_v2_modes![mode0State.mode!] = mode0State
+
+                let mode1State = MwvPpgV2ModeCodableState()
+                mode1State.mode = "MODE 1"
+                mode1State.atime = 29
+                mode1State.astep = 599
+                mode1State.again = 9
+                mode1State.wcycles = 179
+                mode1State.drive = 4
+                projectState.mwv_ppg_v2_modes![mode1State.mode!] = mode1State
+
+                let mode2State = MwvPpgV2ModeCodableState()
+                mode2State.mode = "MODE 2"
+                mode2State.atime = 29
+                mode2State.astep = 599
+                mode2State.again = 9
+                mode2State.wcycles = 179
+                mode2State.drive = 4
+                projectState.mwv_ppg_v2_modes![mode2State.mode!] = mode2State
+
+                let mode3State = MwvPpgV2ModeCodableState()
+                mode3State.mode = "MODE 3"
+                mode3State.atime = 29
+                mode3State.astep = 599
+                mode3State.again = 9
+                mode3State.wcycles = 179
+                mode3State.drive = 4
+                projectState.mwv_ppg_v2_modes![mode3State.mode!] = mode3State
+
+                
+                projects[MWV_PPG_V2] = projectState
+            }
+            
+            guard let project = projects[projectMode ?? ""] else {
+                fatalError("Inconsistent app state for project \(self)")
+            }
+            
+            return project
+        default:
+            LOGGER.error("No implementation of default for \(projectMode ?? "")")
+            return projects[projectMode ?? ""] ?? ProjectCodableState()
+        }
     }
 }

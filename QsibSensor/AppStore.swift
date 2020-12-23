@@ -213,6 +213,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         state.ble?.centralManager.cancelPeripheralConnection(action.peripheral)
     case let action as DidDisconnect:
         let _ = getPeripheral(&state, action.peripheral)
+        ACTION_DISPATCH(action: StopMeasurement(peripheral: action.peripheral))
     case let action as DidFailToConnect:
         let _ = getPeripheral(&state, action.peripheral)
     case let action as DidUpdateValueForBattery:
@@ -291,23 +292,45 @@ func appReducer(action: Action, state: AppState?) -> AppState {
             peripheral.activeMeasurement = QsMeasurement(signalChannels: UInt8(numChannels))
             peripheral.activeMeasurement?.state = .running
             save(&state, peripheral)
-            let data = Data([0x69])
-            ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+            
+            switch peripheral.projectMode ?? "" {
+            case MWV_PPG_V2:
+                peripheral.writeProjectControlForPpg()
+            case SHUNT_MONITOR_V1:
+                peripheral.writeProjectControlForShuntMonitor()
+            default:
+                let data = Data([0x69])
+                ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+            }
         } else {
             LOGGER.error("Number of channels not set. Cannot start measurement")
         }
     case let action as ResumeMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .running
-        let data = Data([0x69])
-        ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+        
+        switch peripheral.projectMode ?? "" {
+        case MWV_PPG_V2:
+            peripheral.writeProjectControlForPpg()
+        case SHUNT_MONITOR_V1:
+            peripheral.writeProjectControlForShuntMonitor()
+        default:
+            let data = Data([0x69])
+            ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+        }
     case let action as PauseMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .paused
         peripheral.activeMeasurement?.startStamp = nil
         peripheral.activeMeasurement?.payloadCount = 0
-        let data = Data([0x00])
-        ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+        
+        switch peripheral.projectMode ?? "" {
+        case MWV_PPG_V2:
+            peripheral.pause()
+        default:
+            let data = Data([0x00])
+            ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+        }
     case let action as StopMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         if let activeMeasurement = peripheral.activeMeasurement {
@@ -317,8 +340,15 @@ func appReducer(action: Action, state: AppState?) -> AppState {
             peripheral.finalizedMeasurements.append(activeMeasurement)
             peripheral.activeMeasurement = nil
             save(&state, peripheral)
-            let data = Data([0x00])
-            ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+            
+            
+            switch peripheral.projectMode ?? "" {
+            case MWV_PPG_V2:
+                peripheral.pause()
+            default:
+                let data = Data([0x00])
+                ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+            }
         } else {
             LOGGER.trace("No active measurement to stop")
         }
@@ -326,8 +356,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .running
         peripheral.rssi = -100
-        let data = Data([0xDE, 0xAD, 0xBE, 0xEF]).prefix(4)
-        ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+        peripheral.turnOff()
     case let action as IssueControlWriteFor:
         let peripheral = getPeripheral(&state, action.peripheral)
         switch action.projectMode {

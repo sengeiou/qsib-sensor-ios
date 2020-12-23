@@ -109,7 +109,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             return
         }
         
-        guard Date().timeIntervalSince(updateTs) > 1 else {
+        guard Date().timeIntervalSince(updateTs) > 0.5 else {
             return
         }
         updateTs = Date()
@@ -281,14 +281,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             if isProjectConfigged() {
                 switch self.peripheral?.projectMode ?? "" {
                 case MWV_PPG_V2:
-                    switch indexPath.row {
-                    case 6:
-                        LOGGER.debug("Handling apply mode config selection")
-                        
-                        ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: MWV_PPG_V2))
-                    default:
-                        LOGGER.debug("Ignoring selection of \(indexPath)")
-                    }
+                    handleSelectOnPpg(peripheral, indexPath)
                 default:
                     LOGGER.error("Unhandled selection at \(indexPath)")
                 }
@@ -341,7 +334,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                             case (1024*1024)...:
                                 cell.detailTextLabel?.text = "\(Int(rate / 1024 / 1024))MB/s"
                             default:
-                                cell.detailTextLabel?.text = nil
+                                cell.detailTextLabel?.text = ""
                             }
                         }
                     case .ended:
@@ -384,25 +377,32 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 let cell = tableView.dequeueReusableCell(withIdentifier: "controlcell0", for: indexPath) as! ControlCell
                 switch self.peripheral?.projectMode ?? "" {
                 case MWV_PPG_V2:
+                    let project = peripheral.getOrDefaultProject()
+                    let opMode = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""] ?? MwvPpgV2ModeCodableState()
                     switch indexPath.row {
                     case 0: // Mode
                         cell.textLabel?.text = "Mode"
-                        cell.detailTextLabel?.text = "IDLE"
+                        cell.detailTextLabel?.text = opMode.mode ?? "---"
                     case 1:
                         cell.textLabel?.text = "Step time (ATIME)"
-                        cell.detailTextLabel?.text = "29 (2.78us cycles)"
+                        let atime = opMode.atime == nil ? "---" : "\(opMode.atime!)"
+                        cell.detailTextLabel?.text = "\(atime) (2.78us cycles)"
                     case 2:
                         cell.textLabel?.text = "Integration steps (ASTEP)"
-                        cell.detailTextLabel?.text = "599 steps"
+                        let astep = opMode.astep == nil ? "---" : "\(opMode.astep!)"
+                        cell.detailTextLabel?.text = "\(astep) steps"
                     case 3:
                         cell.textLabel?.text = "Gain (AGAIN)"
-                        cell.detailTextLabel?.text = "256x"
+                        let again = opMode.again == nil ? "---" : "\(String.init(format: "%.1f", pow(Float(2), Float(opMode.again! - 1))))"
+                        cell.detailTextLabel?.text = "\(again)x"
                     case 4:
-                        cell.textLabel?.text = "Wait cycles (determines WTIME)"
-                        cell.detailTextLabel?.text = "179 (2.78ms cycles)"
+                        cell.textLabel?.text = "Sample Period (WTIME)"
+                        let wtime = opMode.wcycles == nil ? "---" : String.init(format: "%.1f", 2.78 * Float(opMode.wcycles! + 1))
+                        cell.detailTextLabel?.text = "\(wtime) ms"
                     case 5:
                         cell.textLabel?.text = "LED Drive"
-                        cell.detailTextLabel?.text = "12 mA"
+                        let drive = opMode.drive == nil ? "---" : "\((4 + (opMode.drive! * 2)))"
+                        cell.detailTextLabel?.text = "\(drive) mA"
                     case 6:
                         cell.textLabel?.text = "Apply"
                         cell.detailTextLabel?.text = ""
@@ -421,7 +421,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     return cell
                 }
                 
-                if indexPath.section - 1 > activeMeasurement.signalChannels {
+                if indexPath.section - 2 > activeMeasurement.signalChannels {
                     LOGGER.error("Cannot populate data for channel that the active measurement is not configured to have")
                     fatalError("Cannot populate data for channel that the active measurement is not configured to have")
                 }
@@ -432,14 +432,153 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 }
 
                 cell.timestamps = graphableTimestamps
-                cell.channel = graphableChannels[indexPath.section - 1]
-                LOGGER.trace("Updating channel \(indexPath.section - 1) with \(cell.timestamps.count) (\(cell.channel.count)) values")
+                cell.channel = graphableChannels[indexPath.section - 2]
+                LOGGER.trace("Updating channel \(indexPath.section - 2) with \(cell.timestamps.count) (\(cell.channel.count)) values")
                 cell.dataLabel = "SAADC Samples (mV)"
                 cell.colorIndex = indexPath.section
                 cell.chartView.delegate = cell
                 cell.updateChartView()
                 return cell
             }
+        }
+    }
+    
+    private func handleSelectOnPpg(_ peripheral: QSPeripheral, _ indexPath: IndexPath) {
+        LOGGER.trace("Handling select on \(indexPath) for ppg")
+        
+        
+        let project = peripheral.getOrDefaultProject()
+        
+        switch indexPath.row {
+        case 0:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+            editorVC.headerLabelText = "Operational Mode"
+            editorVC.options = ["IDLE", "MODE 0", "MODE 1", "MODE 2", "MODE 3"]
+            editorVC.confirmedValue = editorVC.options.firstIndex(of: project.defaultMode ?? "") ?? 0
+            editorVC.proposedValue = editorVC.confirmedValue
+            editorVC.predicate = { (i) in return true }
+            editorVC.actionFactory = { selectedIndex in
+                let selection = editorVC.options[selectedIndex]
+                LOGGER.debug("Selected mode \(selection)")
+                project.defaultMode = selection
+                peripheral.save()
+                return Tick()
+            }
+            self.present(editorVC, animated: true)
+        case 1:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+            editorVC.headerLabelText = "Step time (ATIME)"
+            editorVC.options = (0...UINT8_MAX).map { "\($0)" }
+            editorVC.confirmedValue = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.atime ?? 0
+            editorVC.proposedValue = editorVC.confirmedValue
+            editorVC.predicate = { (i) in return true }
+            editorVC.actionFactory = { selectedIndex in
+                LOGGER.debug("Selected atime \(selectedIndex)")
+                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.atime = selectedIndex
+                peripheral.save()
+                return Tick()
+            }
+            self.present(editorVC, animated: true)
+        case 2:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+            editorVC.headerLabelText = "Integration steps (ASTEP)"
+            editorVC.options = (0...UINT16_MAX).map { "\($0)" }
+            editorVC.confirmedValue = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.astep ?? 0
+            editorVC.proposedValue = editorVC.confirmedValue
+            editorVC.predicate = { (i) in return true }
+            editorVC.actionFactory = { selectedIndex in
+                LOGGER.debug("Selected atime \(selectedIndex)")
+                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.astep = selectedIndex
+                peripheral.save()
+                return Tick()
+            }
+            self.present(editorVC, animated: true)
+        case 3:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+            editorVC.headerLabelText = "Gain (AGAIN)"
+            editorVC.options = (0...10).map { i in
+                let gainStr: String = String.init(format: "%.1f", pow(Float(2), Float(i - 1)))
+                return "\(gainStr)x"
+            }
+            editorVC.confirmedValue = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.again ?? 0
+            editorVC.proposedValue = editorVC.confirmedValue
+            editorVC.predicate = { (i) in return true }
+            editorVC.actionFactory = { selectedIndex in
+                LOGGER.debug("Selected again \(editorVC.options[selectedIndex])")
+                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.again = selectedIndex
+                peripheral.save()
+                return Tick()
+            }
+            self.present(editorVC, animated: true)
+        case 4:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+            editorVC.headerLabelText = "WTIME (1000 ms / Sample Hz)"
+            editorVC.detailLabelText = "(WTIME = 2.78ms * WCYCLES) >= (ASTEP + 1) * (ATIME + 1) * 2.78us"
+            var firstOption = 255
+            editorVC.options = (0...255).filter { (i) in
+                guard let mode = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""] else {
+                    return false
+                }
+                let wtime = 2.78 * Float(i + 1) * 1000
+                let min_wtime = Float(mode.atime ?? 0 + 1) * Float(mode.astep ?? 0 + 1) * 2.78
+                if wtime >= min_wtime {
+                    if i < firstOption {
+                        firstOption = i
+                    }
+                    return true
+                } else {
+                    return false
+                }
+            }.map { i in
+                let waitStr: String = String.init(format: "%.1f", 2.78 * Float(i + 1))
+                return "\(waitStr) ms"
+            }
+            if let wcycles = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.wcycles {
+                editorVC.confirmedValue = wcycles - firstOption + 1
+            } else {
+                editorVC.confirmedValue =  0
+            }
+            editorVC.proposedValue = editorVC.confirmedValue
+            editorVC.predicate = { (i) in return true }
+            editorVC.actionFactory = { selectedIndex in
+                LOGGER.debug("Selected wtime \(editorVC.options[selectedIndex])")
+                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.wcycles = firstOption + selectedIndex
+                peripheral.save()
+                return Tick()
+            }
+            self.present(editorVC, animated: true)
+        case 5:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+            editorVC.headerLabelText = "LED Drive"
+            editorVC.options = (0...255).map { i in
+                return "\(4 + (i * 2)) mA"
+            }
+            editorVC.confirmedValue = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.drive ?? 0
+            editorVC.proposedValue = editorVC.confirmedValue
+            editorVC.predicate = { (i) in return true }
+            editorVC.actionFactory = { selectedIndex in
+                LOGGER.debug("Selected led drive \(editorVC.options[selectedIndex])")
+                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.drive = selectedIndex
+                peripheral.save()
+                return Tick()
+            }
+            self.present(editorVC, animated: true)
+        case 6:
+            guard let mode = peripheral.projectMode else {
+                LOGGER.error("Cannot apply alteration to unknown project mode")
+                return
+            }
+            LOGGER.debug("Selected apply project mode on \(mode)")
+            ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: mode))
+
+        default:
+            LOGGER.error("Unhandled row selection for \(MWV_PPG_V2) on \(indexPath)")
         }
     }
 }
