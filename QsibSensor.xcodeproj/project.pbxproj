@@ -34,6 +34,8 @@
 		06A8B533256833BD00880CE8 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A8B532256833BD00880CE8 /* AppStore.swift */; };
 		06BA97BD2576B56C007FFB75 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 06BA97BC2576B56C007FFB75 /* ZIPFoundation */; };
 		06DC88EE256C1B70006A2B97 /* QSPeripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */; };
+		06F8864A25A4C58F001D423B /* StatusControlVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06F8864925A4C58F001D423B /* StatusControlVC.swift */; };
+		06F8864D25A4CEB6001D423B /* ConnectedDeviceVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06F8864C25A4CEB6001D423B /* ConnectedDeviceVC.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,6 +59,8 @@
 		06A8B5302568339D00880CE8 /* QsibSensor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QsibSensor.entitlements; sourceTree = "<group>"; };
 		06A8B532256833BD00880CE8 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
 		06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QSPeripheral.swift; sourceTree = "<group>"; };
+		06F8864925A4C58F001D423B /* StatusControlVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusControlVC.swift; sourceTree = "<group>"; };
+		06F8864C25A4CEB6001D423B /* ConnectedDeviceVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedDeviceVC.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +125,8 @@
 				06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */,
 				060C372E256C49F200DEF35F /* DeviceInfoVC.swift */,
 				0630F8F8256D9EDE00559577 /* InspectDataVC.swift */,
+				06F8864925A4C58F001D423B /* StatusControlVC.swift */,
+				06F8864C25A4CEB6001D423B /* ConnectedDeviceVC.swift */,
 			);
 			path = QsibSensor;
 			sourceTree = "<group>";
@@ -175,7 +181,6 @@
 		068E705F2565AC2F00673E32 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				BuildIndependentTargetsInParallel = NO;
 				LastSwiftUpdateCheck = 1220;
 				LastUpgradeCheck = 1220;
 				TargetAttributes = {
@@ -229,10 +234,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				068E706F2565AC2F00673E32 /* MainViewController.swift in Sources */,
+				06F8864A25A4C58F001D423B /* StatusControlVC.swift in Sources */,
 				068E708C2565BD2E00673E32 /* DevicesTableVC.swift in Sources */,
 				068E706B2565AC2F00673E32 /* AppDelegate.swift in Sources */,
 				068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */,
 				068E706D2565AC2F00673E32 /* SceneDelegate.swift in Sources */,
+				06F8864D25A4CEB6001D423B /* ConnectedDeviceVC.swift in Sources */,
 				06DC88EE256C1B70006A2B97 /* QSPeripheral.swift in Sources */,
 				06A8B533256833BD00880CE8 /* AppStore.swift in Sources */,
 				0630F8F9256D9EDE00559577 /* InspectDataVC.swift in Sources */,

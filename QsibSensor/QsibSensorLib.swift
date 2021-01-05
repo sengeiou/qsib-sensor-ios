@@ -15,44 +15,132 @@ enum MeasurementState {
     case ended
 }
 
-class QsMeasurement {
-    let rs_id: UInt32
-    let signalChannels: UInt8
-    var sampleCount: UInt64
-    var payloadCount: UInt64
-    var startStamp: Date?
-    var avgEffectivePayloadSize: Float
-    var state: MeasurementState
+struct RsParams {
+    let id: UInt32
+    let channels: UInt8
+    let hz: Float32
+    let scaler: Float32
+}
 
-    var graphableTimestamps: [Double]?
-    var graphableChannels: [[Double]]?
+protocol DataSetProtocol {
+    func getStart() -> Date?
+    func getParams() -> RsParams
+    func getGraphableTimestamps() -> [Double]
+    func getGraphableChannels() -> [[Double]]
+    func getAllTimestamps() -> [Double]
+    func getAllChannels() -> [[Double]]
+    func asURL() -> URL
+}
+
+class RamDataSet: DataSetProtocol {
+    let params: RsParams
     
-    public init(signalChannels: UInt8) {
-        LOGGER.trace("Allocating QsMeasurment with \(signalChannels)")
-        self.rs_id = qs_create_measurement(signalChannels)
-        self.signalChannels = signalChannels
-        self.sampleCount = 0
-        self.payloadCount = 0
-        self.state = .initial
-        self.startStamp = nil
-        self.avgEffectivePayloadSize = 0
-        LOGGER.trace("Allocated QsMeasurement \(self.rs_id)")
+    var start: Date?
+    var payloadCount: UInt64
+    var sampleCount: UInt64
+    var _channelBufSize: UInt32
+    var _channelLock = pthread_mutex_t()
+    var _channelData: UnsafeMutablePointer<UnsafeMutablePointer<Double>?>?
+    var _samplesPerChannelData: UnsafeMutablePointer<UInt32>?
+    var _timestampBufSize: UInt32
+    var _timestampLock = pthread_mutex_t()
+    var _timestampsData: UnsafeMutablePointer<Double>?
+    var _numTimestampsData: UnsafeMutablePointer<UInt32>?
+    
+    var avgEffectivePayloadSize: UInt32?
+    var timestampOffset: Double
+    
+    init(libParams: RsParams, timestampOffset: Double) {
+        params = libParams
+        
+        start = nil
+        payloadCount = 0
+        sampleCount = 0
+        
+        _channelBufSize = 0
+        _timestampBufSize = 0
+        
+        pthread_mutex_init(&_channelLock, nil)
+        pthread_mutex_init(&_timestampLock, nil)
+        
+        avgEffectivePayloadSize = nil
+        self.timestampOffset = timestampOffset
     }
     
     deinit {
-        LOGGER.trace("Dropping QsMeasumrent \(self.rs_id)")
-        let success = qs_drop_measurement(self.rs_id)
-        LOGGER.trace("Dropped QsMeasurement \(self.rs_id) with result \(success)")
+        let success = qs_drop_measurement(self.params.id)
+        LOGGER.trace("Dropped RamDataSet \(self.params.id) with result \(success)")
+        
+        if let channelData = _channelData {
+            channelData.deallocate()
+        }
+        
+        if let samplesPerChannelData = _samplesPerChannelData {
+            samplesPerChannelData.deallocate()
+        }
     }
     
-    public func addPayload(data: Data) -> UInt32? {
+    func getStart() -> Date? {
+        return start
+    }
+    
+    func getParams() -> RsParams {
+        return params
+    }
+        
+    func asURL() -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("data_\(params.id).csv")
+        LOGGER.debug("Writing RamDataSet \(self.params.id) to \(url.absoluteString)")
+        
+        // Get all of the data to place in a file using the measurement id
+        let ts = getAllTimestamps()
+        let cs = getAllChannels()
+        
+        // Dump all of the data to a file as CSV
+        let channelHeaders = (0..<params.channels).map { "Channel\($0)" }.joined(separator: ",")
+        let csvData = "TimestampSinceCaptureStart,\(channelHeaders)\n" + zip(ts, (0..<Int(cs[0].count)))
+            .map { (t, i) in
+                let channelValues = (0..<cs.count)
+                    .map { cs[$0][i] }
+                    .map { String.init(format: "%.3f", $0) }.joined(separator: ",")
+                return "\(t + timestampOffset),\(channelValues)"
+            }
+            .joined(separator: "\n")
+        let uncompressedData = csvData.data(using: String.Encoding.utf8)!
+
+        
+        // Actual file IO
+        try? FileManager.default.removeItem(at: url)
+        guard FileManager.default.createFile(atPath: url.path, contents: uncompressedData, attributes: nil) else {
+            fatalError("Failed to write data to file")
+        }
+        return url
+    }
+    
+    func getGraphableTimestamps() -> [Double] {
+        return getTimestamps(targetCardinality: 100)
+    }
+    
+    func getGraphableChannels() -> [[Double]] {
+        return getChannels(targetCardinality: 100)
+    }
+    
+    func getAllTimestamps() -> [Double] {
+        return getTimestamps(targetCardinality: nil)
+    }
+    
+    func getAllChannels() -> [[Double]] {
+        return getChannels(targetCardinality: nil)
+    }
+    
+    func addPayload(data: Data) -> UInt32? {
 //        LOGGER.trace("Adding signals from \(data.prefix(Int(data[0])).hexEncodedString())")
         guard sampleCount < UINT32_MAX - 255 else {
             LOGGER.error("Not enough space to continue allocating samples")
             return nil
         }
         
-        guard data.count <= 2000 else {
+        guard data.count <= 512 else {
             LOGGER.error("Payload buffer is too big to be valid")
             return nil
         }
@@ -70,68 +158,126 @@ class QsMeasurement {
         var samples: UInt32? = nil
         data.withUnsafeBytes({ (buf_ptr: UnsafeRawBufferPointer) in
             let ptr = buf_ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-            samples = qs_add_signals(self.rs_id, ptr, UInt16(len))
+            samples = qs_add_signals(self.params.id, ptr, UInt16(len))
         })
         
-//        LOGGER.trace("Added \(String(describing: samples)) samples for \(self.sampleCount) total")
         sampleCount += UInt64(samples ?? 0)
         payloadCount += 1
-        avgEffectivePayloadSize = (avgEffectivePayloadSize + Float(data.count - (2 + 1 + 4))) / 2
-        if state == .running && startStamp == nil {
-            startStamp = Date()
+        
+        let effectiveSize = UInt32(data.count - (2 + 1 + 1 + 4))
+        if avgEffectivePayloadSize != nil {
+            avgEffectivePayloadSize = ((avgEffectivePayloadSize! * UInt32(payloadCount - 1)) + effectiveSize) / UInt32(payloadCount)
+        } else {
+            avgEffectivePayloadSize = effectiveSize
+        }
+        
+        if start == nil {
+            start = Date()
         }
 
         return samples
     }
     
-    public func interpretTimestamps(hz: Float32, rateScaler: Float32, targetCardinality: UInt64?) -> (UInt32, [Double])? {
-        LOGGER.trace("Interpretting timestamps for QsMeasurement \(self.rs_id) with \(hz) Hz and \(rateScaler) scaler")
-        
-        guard self.sampleCount < UINT32_MAX else {
-            LOGGER.error("Sample count too large to interpret timestamps")
-            return nil
+    func getReadableDataRate() -> String {
+        guard let start = start else {
+            return "0 B/s"
         }
         
-        var downsampleThreshold: UInt32 = 1
-        var downsampleScale: UInt32 = 1
-        if let targetCardinality = targetCardinality {
-            let samples = self.sampleCount > targetCardinality ? self.sampleCount : targetCardinality
-            downsampleScale = 1024 * 1024
-            downsampleThreshold = UInt32(UInt64(downsampleScale) * targetCardinality / samples)
-        }
-        
-        let bufSize = UInt32(min(UInt64(pow(2, ceil(log(Double(self.sampleCount)) / log(2)))), UInt64(UINT32_MAX)))
-        let timestamps = UnsafeMutablePointer<Double>.allocate(capacity: Int(bufSize))
-        let numTimestamps = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
-        numTimestamps[0] = bufSize
-        let success = qs_interpret_timestamps(self.rs_id, hz, rateScaler, 0xDEADBEEF, downsampleThreshold, downsampleScale, timestamps, numTimestamps)
-        
-        if success {
-            LOGGER.trace("Interpretted \(numTimestamps[0]) timestamps for QsMeasurment \(self.rs_id)")
-            let stamps = [Double](UnsafeBufferPointer(start: timestamps, count: Int(numTimestamps[0])))
-            let num = numTimestamps[0]
-            
-            timestamps.deallocate()
-            numTimestamps.deallocate()
-            
-            return (num, stamps)
-        } else {
-            LOGGER.error("Failed to interpret timestamps for QsMeasurement \(self.rs_id)")
-            LOGGER.error("QS_LIB error message: \(String(describing: QS_LIB.getError()))")
-            
-            timestamps.deallocate()
-            numTimestamps.deallocate()
-
-            return nil
+        let elapsed = Float(Date().timeIntervalSince(start))
+        let effectiveBytes = Float(avgEffectivePayloadSize ?? 0) * Float(payloadCount)
+        LOGGER.trace("\(payloadCount) payloads had \(avgEffectivePayloadSize ?? 0) effective bytes in \(elapsed) seconds")
+        let rate = Int(effectiveBytes / elapsed)
+        switch rate {
+        case 0...1024:
+             return "\(rate)B/s"
+        case 1024...(1024*1024):
+            return "\(Int(rate / 1024))KB/s"
+        case (1024*1024)...:
+            return "\(Int(rate / 1024 / 1024))MB/s"
+        default:
+            return "0 B/s"
         }
     }
- 
-    public func getSignals(targetCardinality: UInt64?) -> (UInt32, [[Double]])? {
-        LOGGER.trace("Copying signals for QsMeasurement \(self.rs_id)")
+    
+    func getReadableDataSize(multiplier: Double) -> String {
+        // Storage size in RAM as Doubles for current data set
+        let totalSamples = Int(params.channels + 1) * Int(sampleCount)
+        let numBytes = totalSamples * 8;
+        let multipliedBytes = UInt64(multiplier * Double(numBytes))
+
+        switch multipliedBytes {
+        case 0...1024:
+            return "\(multipliedBytes)B"
+        case 1024...(1024*1024):
+            return "\(Int(multipliedBytes / 1024))KB"
+        case (1024*1024)...:
+            return "\(Int(multipliedBytes / 1024 / 1024))MB"
+        default:
+            return "0B"
+        }
+    }
+
+    private func getChannelBuffers() -> (UnsafeMutablePointer<UnsafeMutablePointer<Double>?>, UnsafeMutablePointer<UInt32>) {
+        
+        var newBufSize = UInt64(pow(2, ceil(log(Double(self.sampleCount)) / log(2))))
+        newBufSize = min(newBufSize, UInt64(UINT32_MAX))
+        newBufSize = max(newBufSize, 4096)
+        
+        if _channelBufSize >= newBufSize && _channelData != nil && _samplesPerChannelData != nil {
+            _samplesPerChannelData![0] = _channelBufSize
+            return (_channelData!, _samplesPerChannelData!)
+        }
+        
+        _channelBufSize = UInt32(newBufSize)
+        
+        if let _ = _channelData {
+            for i in 0..<self.params.channels {
+                _channelData![Int(i)]!.deallocate()
+            }
+            _channelData!.deallocate()
+            _samplesPerChannelData!.deallocate()
+        }
+        
+        _channelData = UnsafeMutablePointer<UnsafeMutablePointer<Double>?>.allocate(capacity: Int(self.params.channels))
+        for i in 0..<self.params.channels {
+            _channelData![Int(i)] = UnsafeMutablePointer<Double>.allocate(capacity: Int(_channelBufSize))
+        }
+        
+        _samplesPerChannelData = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
+        _samplesPerChannelData![0] = _channelBufSize
+        
+        return (_channelData!, _samplesPerChannelData!)
+    }
+    
+    private func getTimestampBuffers() -> (UnsafeMutablePointer<Double>, UnsafeMutablePointer<UInt32>) {
+        var newBufSize = UInt64(pow(2, ceil(log(Double(self.sampleCount)) / log(2))))
+        newBufSize = min(newBufSize, UInt64(UINT32_MAX))
+        newBufSize = max(newBufSize, 4096)
+
+        if _timestampBufSize >= newBufSize && _timestampsData != nil && _numTimestampsData != nil {
+            _numTimestampsData![0] = _timestampBufSize
+            return (_timestampsData!, _numTimestampsData!)
+        }
+        
+        _timestampBufSize = UInt32(newBufSize)
+        
+        if let _ = _timestampsData {
+            _timestampsData!.deallocate()
+            _numTimestampsData!.deallocate()
+        }
+
+        _timestampsData = UnsafeMutablePointer<Double>.allocate(capacity: Int(_timestampBufSize))
+        _numTimestampsData = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
+
+        return (_timestampsData!, _numTimestampsData!)
+
+    }
+    
+    private func getChannels(targetCardinality: UInt64?) -> [[Double]] {
+        LOGGER.trace("Copying signals for RamDataSet \(self.params.id)")
         
         guard self.sampleCount < UINT32_MAX else {
-            LOGGER.error("Sample count too large to copy signals")
-            return nil
+            fatalError("Sample count too large to copy signals")
         }
         
         var downsampleThreshold: UInt32 = 1
@@ -142,90 +288,220 @@ class QsMeasurement {
             downsampleThreshold = UInt32(UInt64(downsampleScale) * targetCardinality / samples)
         }
         
-        let bufSize = UInt32(min(UInt64(pow(2, ceil(log(Double(self.sampleCount)) / log(2)))), UInt64(UINT32_MAX)))
-        
-        let channelData = UnsafeMutablePointer<UnsafeMutablePointer<Double>?>.allocate(capacity: Int(self.signalChannels))
-        for i in 0..<self.signalChannels {
-            channelData[Int(i)] = UnsafeMutablePointer<Double>.allocate(capacity: Int(bufSize))
+        pthread_mutex_lock(&_channelLock)
+        defer {
+            pthread_mutex_unlock(&_channelLock)
         }
-        let numSamplesPerChannel = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
-        numSamplesPerChannel[0] = bufSize
+        let (channelData, numSamplesPerChannel) = getChannelBuffers()
         
-        let success = qs_copy_signals(self.rs_id, 0xDEADBEEF, downsampleThreshold, downsampleScale, channelData, numSamplesPerChannel)
+        let success = qs_copy_signals(self.params.id, 0xDEADBEEF, downsampleThreshold, downsampleScale, channelData, numSamplesPerChannel)
         if success {
-            LOGGER.trace("Copied \(numSamplesPerChannel[0]) samples per channel \(self.signalChannels) for QsMeasurment \(self.rs_id)")
-            let channels: [[Double]] = (0..<self.signalChannels).map { channelIndex in
+            LOGGER.trace("Copied \(numSamplesPerChannel[0]) samples over \(self.params.channels) channels for RamDataSet \(self.params.id)")
+            let channels: [[Double]] = (0..<self.params.channels).map { channelIndex in
                 let v = [Double](UnsafeBufferPointer(start: channelData[Int(channelIndex)]!, count: Int(numSamplesPerChannel[0])))
-                channelData[Int(channelIndex)]!.deallocate()
                 return v
             }
-
-            channelData.deallocate()
-            
-            let num = numSamplesPerChannel[0];
-            numSamplesPerChannel.deallocate()
-            
-            return (num, channels)
+             
+            return channels
         } else {
-            LOGGER.error("Failed to interpret timestamps for QsMeasurement \(self.rs_id)")
-            LOGGER.error("QS_LIB error message: \(String(describing: QS_LIB.getError()))")
-            
-            channelData.deallocate()
-            for i in 0..<self.signalChannels {
-                channelData[Int(i)]!.deallocate()
-            }
-            numSamplesPerChannel.deallocate()
-            
-            return nil
+            LOGGER.error("Failed to interpret timestamps for RamDataSet \(self.params.id)")
+            LOGGER.error("QS_SENSOR_LIB error message: \(String(describing: QS_LIB.getError()))")
+            fatalError(String(describing: QS_LIB.getError()))
         }
     }
     
-    public func archive(hz: Float, rateScaler: Float) -> URL? {
-        LOGGER.debug("Archiving QsMeasurement \(self.rs_id) ...")
+    private func getTimestamps(targetCardinality: UInt64?) -> [Double] {
+        LOGGER.trace("Interpretting timestamps for RamDataSet \(self.params.id) with \(self.params.hz) Hz and \(self.params.scaler) scaler")
         
-        guard let (numTimestamps, archivableTimestamps) = self.interpretTimestamps(hz: hz, rateScaler: rateScaler, targetCardinality: nil) else {
-            LOGGER.error("Failed to get archivable timestamps")
-            return nil
+        guard self.sampleCount < UINT32_MAX else {
+            fatalError("Sample count too large to interpret timestamps")
         }
-        LOGGER.trace("Retrieved \(numTimestamps) timestamps")
+        
+        var downsampleThreshold: UInt32 = 1
+        var downsampleScale: UInt32 = 1
+        if let targetCardinality = targetCardinality {
+            let samples = self.sampleCount > targetCardinality ? self.sampleCount : targetCardinality
+            downsampleScale = 1024 * 1024
+            downsampleThreshold = UInt32(UInt64(downsampleScale) * targetCardinality / samples)
+        }
+        
+        pthread_mutex_lock(&_timestampLock)
+        defer {
+            pthread_mutex_unlock(&_timestampLock)
+        }
+        let (timestamps, numTimestamps) = getTimestampBuffers()
+        
+        let success = qs_interpret_timestamps(self.params.id, self.params.hz, self.params.scaler, 0xDEADBEEF, downsampleThreshold, downsampleScale, timestamps, numTimestamps)
+        if success {
+            LOGGER.trace("Interpretted \(numTimestamps[0]) timestamps for RamDataSet \(self.params.id)")
+            return [Double](UnsafeBufferPointer(start: timestamps, count: Int(numTimestamps[0])))
+        } else {
+            LOGGER.error("Failed to interpret timestamps for RamDataSet \(self.params.id)")
+            LOGGER.error("QS_SENSOR_LIB error message: \(String(describing: QS_LIB.getError()))")
+            fatalError(String(describing: QS_LIB.getError()))
+        }
+    }
+}
 
-        guard let (numSamplesPerChannel, archivableSignals) = self.getSignals(targetCardinality: nil) else {
-            LOGGER.error("Failed to get archivable channel signals")
-            return nil
+class FileDataSet: DataSetProtocol {
+    let start: Date?
+    let params: RsParams
+    let file: URL
+    
+    let graphableTimestamps: [Double]
+    let graphableChannels: [[Double]]
+        
+    init(ramDataSet: RamDataSet) {
+        // Keep copy of ram params and data set
+        start = ramDataSet.start
+        params = ramDataSet.params
+        file = ramDataSet.asURL()
+        
+        // Cache its graphables
+        graphableTimestamps = ramDataSet.getGraphableTimestamps().map { $0 + ramDataSet.timestampOffset }
+        graphableChannels = ramDataSet.getGraphableChannels()
+    }
+    
+    func getStart() -> Date? {
+        return start
+    }
+    
+    func getParams() -> RsParams {
+        return params
+    }
+    
+    func getGraphableTimestamps() -> [Double] {
+        return graphableTimestamps
+    }
+    
+    func getGraphableChannels() -> [[Double]] {
+        return graphableChannels
+    }
+    
+    /*!
+     * A FileDataSet will not go to disk to find the rest of the stamps.
+     */
+    func getAllTimestamps() -> [Double] {
+        return graphableTimestamps
+    }
+    
+    /*!
+     * A FileDataSet will not go to disk to find the rest of the channel data.
+     */
+    func getAllChannels() -> [[Double]] {
+        return graphableChannels
+    }
+    
+    func asURL() -> URL {
+        return file
+    }
+}
+
+class QsMeasurement {
+
+    var state: MeasurementState
+    var dataSets: [DataSetProtocol]
+    let channels: UInt8
+    
+    var graphables: (Date, [Double], [[Double]])
+    
+    public init(signalChannels: UInt8) {
+        LOGGER.trace("Allocating QsMeasurment with \(signalChannels)")
+        
+        self.dataSets = []
+        
+        self.state = .initial
+        self.channels = signalChannels
+        self.graphables = (Date(), [], [])
+    }
+    
+    public func addPayload(data: Data) -> UInt32? {
+        // TODO: guard with mutex because only sensor lib is thread safe, UI vars are not this might get called several times concurrently
+        let activeSet = dataSets.last! as! RamDataSet
+        let result = activeSet.addPayload(data: data)
+        let maxSamples = 1000000
+        if activeSet.sampleCount > maxSamples {
+            LOGGER.info("Detected ongoing measurement with active set surpassing \(maxSamples) samples")
+            startNewDataSet(hz: activeSet.params.hz, scaler: activeSet.params.scaler)
         }
-        LOGGER.trace("Retrieved \(numSamplesPerChannel) samples per (\(archivableSignals.count)) channels")
+        return result
+    }
+    
+    public func startNewDataSet(hz: Float32, scaler: Float32 = 1) {
+        // Create a new active data set in Ram
+        let params = RsParams(id: qs_create_measurement(self.channels), channels: self.channels, hz: hz, scaler: scaler)
+        LOGGER.trace("Allocated a QS_SENSOR_LIB measurement with id \(params.id)")
+        
+        var offset: Double = 0
+        if let firstStart = dataSets.first?.getStart() {
+            offset += Double(Date().timeIntervalSince(firstStart))
+        }
+
+        // Convert the current active data set to a persisted data set
+        if let activeSet = dataSets.last as? RamDataSet {
+            dataSets[dataSets.count - 1] = FileDataSet(ramDataSet: activeSet)
+        }
+
+        // Set the new active data set as active
+        dataSets.append(RamDataSet(libParams: params, timestampOffset: offset))
+    }
+         
+    public func archive() throws -> URL? {
+        LOGGER.debug("Archiving QsMeasurement of \(dataSets.count) data sets ...")
 
         // Create an csv zip for the data
-        let channelHeaders = (0..<archivableSignals.count).map { "Channel\($0)" }.joined(separator: ",")
-        let csvData = "TimestampSinceCaptureStart,\(channelHeaders)\n" + zip(archivableTimestamps, (0..<Int(numSamplesPerChannel)))
-            .map { (t, i) in
-                let channelValues = (0..<archivableSignals.count)
-                    .map { archivableSignals[$0][i] }
-                    .map { String.init(format: "%.3f", $0) }.joined(separator: ",")
-                return "\(t),\(channelValues)"
-            }
-            .joined(separator: "\n")
-        let uncompressedData = csvData.data(using: String.Encoding.utf8)!
-        guard let archive = Archive(accessMode: .create) else {
-            LOGGER.error("Failed to create in-memory archive")
-            return nil
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("archive.zip")
+        try? FileManager.default.removeItem(at: url)
+        guard let archive = Archive(url: url, accessMode: .create) else  {
+            fatalError("Failed to create archive file")
         }
+        
+        for dataSet in dataSets {
+            let dataSetUrl = dataSet.asURL()
+            LOGGER.debug("Adding entry: \(dataSetUrl)")
+            try archive.addEntry(with: dataSetUrl.lastPathComponent, relativeTo: dataSetUrl.deletingLastPathComponent(), compressionMethod: .deflate)
+        }
+                    
+        return url
+    }
     
-        try? archive.addEntry(with: "channels.csv", type: .file, uncompressedSize: UInt32(uncompressedData.count), modificationDate: Date(), permissions: nil, compressionMethod: .deflate, bufferSize: 4096, provider: { (position, size) -> Data in
-            uncompressedData.subdata(in: position..<position+size)
-        })
-        
-        
-        // Write the zip to a temporary file
-        let directoryUrl = FileManager.default.temporaryDirectory
-        let zipFilePath = directoryUrl.appendingPathComponent("archive.zip")
-        try? FileManager.default.removeItem(at: zipFilePath)
-        guard FileManager.default.createFile(atPath: zipFilePath.path, contents: archive.data, attributes: nil) else {
-            LOGGER.error("Failed to write archive at \(zipFilePath)")
-            return nil
+    func getGraphables() -> ([Double], [[Double]]) {
+        if Date().timeIntervalSince(graphables.0) < 1 && graphables.1.count > 0 {
+            return (graphables.1, graphables.2)
         }
         
-        return zipFilePath
+        graphables.0 = Date()
+        graphables.1 = getGraphableTimestamps()
+        graphables.2 = getGraphableChannels()
+        return (graphables.1, graphables.2)
+    }
+    
+    private func getGraphableTimestamps() -> [Double] {
+        let asdf: [[Double]] = dataSets.map { dataSet in
+            if let ramDataSet = dataSet as? RamDataSet {
+                let unshifted = ramDataSet.getGraphableTimestamps()
+                let shifted: [Double] = unshifted.map { $0 + ramDataSet.timestampOffset }
+                return shifted
+            } else {
+                // timestamp offset calculation already cached
+                let shifted: [Double] = dataSet.getGraphableTimestamps()
+                return shifted
+            }
+        }
+        let swiftisdoingdumbshitagain: [Double] = asdf.flatMap { $0 }
+        return swiftisdoingdumbshitagain
+    }
+    
+    private func getGraphableChannels() -> [[Double]] {
+        return dataSets
+            .map { $0.getGraphableChannels() }
+            .reduce(Array(repeating: [], count: Int(channels)), { (acc, curr) in
+                var result: [[Double]] = []
+                for (acc_i, curr_i) in zip(acc, curr) {
+                    result.append(acc_i + curr_i)
+                }
+                return result
+            })
     }
 }
 

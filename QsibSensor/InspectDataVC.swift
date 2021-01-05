@@ -113,7 +113,6 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             return
         }
         updateTs = Date()
-        ACTION_DISPATCH(action: RequestUpdateGraphables(peripheral: peripheral!.cbp))
 
         DispatchQueue.main.async {
             self.tableView.reloadData()
@@ -238,9 +237,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 }
             case 4:
                 LOGGER.debug("Selected save and export measurement ...")
-                if let measurement = peripheral.activeMeasurement,
-                    let hz = peripheral.signalHz {
-                    
+                if let measurement = peripheral.activeMeasurement {
                     LOGGER.debug("Pausing for export from \(measurement.state)")
                     
                     // Pause
@@ -251,7 +248,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     
                     DISPATCH.execute {
                         // Archive
-                        guard let archive = measurement.archive(hz: Float(hz), rateScaler: 1) else {
+                        guard let archive = try? measurement.archive() else {
                             LOGGER.error("Cannot export archive because archiving failed")
                             return
                         }
@@ -321,21 +318,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                         cell.detailTextLabel?.text = ""
                     case .running:
                         cell.textLabel?.text = "Pause"
-                        if let startStamp = self.peripheral?.activeMeasurement?.startStamp {
-                            let elapsed = Float(Date().timeIntervalSince(startStamp))
-                            let effectiveBytes = Float(self.peripheral?.activeMeasurement?.avgEffectivePayloadSize ?? 0.0) * Float(self.peripheral?.activeMeasurement?.payloadCount ?? 0)
-                            LOGGER.trace("\(self.peripheral?.activeMeasurement?.payloadCount ?? 0) payloads had \(self.peripheral?.activeMeasurement?.avgEffectivePayloadSize ?? 0.0) effective bytes in \(elapsed) seconds")
-                            let rate = Int(effectiveBytes / elapsed)
-                            switch rate {
-                            case 0...1024:
-                                cell.detailTextLabel?.text = "\(rate)B/s"
-                            case 1024...(1024*1024):
-                                cell.detailTextLabel?.text = "\(Int(rate / 1024))KB/s"
-                            case (1024*1024)...:
-                                cell.detailTextLabel?.text = "\(Int(rate / 1024 / 1024))MB/s"
-                            default:
-                                cell.detailTextLabel?.text = ""
-                            }
+                        if let activeSet = self.peripheral?.activeMeasurement?.dataSets.last! as? RamDataSet {
+                            cell.detailTextLabel?.text = activeSet.getReadableDataRate()
                         }
                     case .ended:
                         cell.textLabel?.text = "... Measurement already ended ..."
@@ -349,22 +333,14 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 cell.textLabel?.text = "End"
                 cell.detailTextLabel?.text = nil
             case 4:
-                if let measurement = self.peripheral?.activeMeasurement {
-                    let numSamplesPerChannel = Int(measurement.sampleCount)
-                    let totalSamples: Int = Int(measurement.signalChannels) * numSamplesPerChannel
-                    let numBytes = numSamplesPerChannel * 8 + totalSamples * 8; // a little bigger than storage size, not big enough to account for csv size
-                    switch numBytes {
-                    case 0...1024:
-                        cell.detailTextLabel?.text = "\(numBytes)B"
-                    case 1024...(1024*1024):
-                        cell.detailTextLabel?.text = "\(Int(numBytes / 1024))KB"
-                    case (1024*1024)...:
-                        cell.detailTextLabel?.text = "\(Int(numBytes / 1024 / 1024))MB"
-                    default:
-                        cell.detailTextLabel?.text = nil
-                    }
+                if let dataSets =  self.peripheral?.activeMeasurement?.dataSets,
+                   let activeSet = dataSets.last! as? RamDataSet {
+                    // Assume 3x compression across all datasets in the final archive
+                    // Active RAM usage is limited to the active data set size
+                    let multiplier = Double(dataSets.count) * 0.33
+                    cell.detailTextLabel?.text = activeSet.getReadableDataSize(multiplier: multiplier)
                 } else {
-                    cell.detailTextLabel?.text = nil
+                    cell.detailTextLabel?.text = ""
                 }
                 
                 cell.textLabel?.text = "Pause, Save, Export"
@@ -421,19 +397,16 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     return cell
                 }
                 
-                if indexPath.section - 2 > activeMeasurement.signalChannels {
+                if indexPath.section - 2 > activeMeasurement.channels {
                     LOGGER.error("Cannot populate data for channel that the active measurement is not configured to have")
                     fatalError("Cannot populate data for channel that the active measurement is not configured to have")
                 }
                 
-                guard let graphableTimestamps = activeMeasurement.graphableTimestamps,
-                    let graphableChannels = activeMeasurement.graphableChannels else {
-                    return cell
-                }
+                let (graphableTimestamps, graphableChannels) = activeMeasurement.getGraphables()
 
                 cell.timestamps = graphableTimestamps
                 cell.channel = graphableChannels[indexPath.section - 2]
-                LOGGER.trace("Updating channel \(indexPath.section - 2) with \(cell.timestamps.count) (\(cell.channel.count)) values")
+                LOGGER.trace("Updating channel \(indexPath.section - 2) with [\(cell.timestamps.count), \(cell.channel.count)] values")
                 cell.dataLabel = "SAADC Samples (mV)"
                 cell.colorIndex = indexPath.section
                 cell.chartView.delegate = cell

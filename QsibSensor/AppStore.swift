@@ -159,23 +159,6 @@ struct TurnOffSensor: Action {
     let peripheral: CBPeripheral
 }
 
-struct RequestUpdateGraphables: Action {
-    let peripheral: CBPeripheral
-}
-
-struct UpdateGraphableTimestamps: Action {
-    let peripheral: CBPeripheral
-    let measurement: QsMeasurement
-    let timestamps: [Double]
-}
-
-struct UpdateGraphableChannels: Action {
-    let peripheral: CBPeripheral
-    let measurement: QsMeasurement
-    let channels: [[Double]]
-}
-
-
 struct AppendToast: Action {
     let message: ToastMessage
 }
@@ -291,17 +274,28 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         if let numChannels = peripheral.signalChannels {
             peripheral.activeMeasurement = QsMeasurement(signalChannels: UInt8(numChannels))
             peripheral.activeMeasurement?.state = .running
-            save(&state, peripheral)
             
             switch peripheral.projectMode ?? "" {
             case MWV_PPG_V2:
+                let state = peripheral.getOrDefaultProject()
+                let currentMode: String = state.defaultMode!
+                let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
+                let hz = 1000.0 / wtime
+                peripheral.activeMeasurement!.startNewDataSet(hz: hz)
                 peripheral.writeProjectControlForPpg()
             case SHUNT_MONITOR_V1:
-                peripheral.writeProjectControlForShuntMonitor()
+                if let hz = peripheral.signalHz {
+                    peripheral.activeMeasurement!.startNewDataSet(hz: Float(hz))
+                    peripheral.writeProjectControlForShuntMonitor()
+                }
             default:
-                let data = Data([0x69])
-                ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+                if let hz = peripheral.signalHz {
+                    peripheral.activeMeasurement!.startNewDataSet(hz: Float(hz))
+                    let data = Data([0x69])
+                    ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
+                }
             }
+            save(&state, peripheral)
         } else {
             LOGGER.error("Number of channels not set. Cannot start measurement")
         }
@@ -321,13 +315,19 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as PauseMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .paused
-        peripheral.activeMeasurement?.startStamp = nil
-        peripheral.activeMeasurement?.payloadCount = 0
+        LOGGER.info("Starting new dataset due to handling pause")
         
         switch peripheral.projectMode ?? "" {
         case MWV_PPG_V2:
+            let state = peripheral.getOrDefaultProject()
+            let currentMode: String = state.defaultMode!
+            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
+            let hz = 1000.0 / wtime
+            peripheral.activeMeasurement?.startNewDataSet(hz: hz)
             peripheral.pause()
         default:
+            let params = peripheral.activeMeasurement?.dataSets.last?.getParams()
+            peripheral.activeMeasurement?.startNewDataSet(hz: params?.hz ?? 0, scaler: params?.scaler ?? 1)
             let data = Data([0x00])
             ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
         }
@@ -335,8 +335,6 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let peripheral = getPeripheral(&state, action.peripheral)
         if let activeMeasurement = peripheral.activeMeasurement {
             peripheral.activeMeasurement?.state = .ended
-            peripheral.activeMeasurement?.startStamp = nil
-            peripheral.activeMeasurement?.payloadCount = 0
             peripheral.finalizedMeasurements.append(activeMeasurement)
             peripheral.activeMeasurement = nil
             save(&state, peripheral)
@@ -367,42 +365,6 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         default:
             LOGGER.error("Don't know how to handle control writes for projectMode \(action.projectMode)")
         }
-    case let action as RequestUpdateGraphables:
-        let peripheral = getPeripheral(&state, action.peripheral)
-        if let measurement = peripheral.activeMeasurement {
-            DISPATCH.execute {
-                guard let signalHz = peripheral.signalHz else {
-                    LOGGER.error("Cannot interpret timestamps without expected signal hz")
-                    return
-                }
-                
-                guard let (_, timestamps) = measurement.interpretTimestamps(hz: Float(signalHz), rateScaler: 1.0, targetCardinality: 1000) else {
-                    LOGGER.error("Failed to interpret timestamps for \(measurement)")
-                    return
-                }
-                
-                ACTION_DISPATCH(action: UpdateGraphableTimestamps(peripheral: peripheral.cbp, measurement: measurement, timestamps: timestamps))
-            }
-            
-            DISPATCH.execute {
-                guard let (_, channelSignals) = measurement.getSignals(targetCardinality: 1000) else {
-                    LOGGER.error("Failed to copy measurement signals for \(measurement)")
-                    return
-                }
-                
-                ACTION_DISPATCH(action: UpdateGraphableChannels(peripheral: peripheral.cbp, measurement: measurement, channels: channelSignals))
-            }
-        } else {
-            LOGGER.debug("Cannot request update graphables on peripheral without active measurement")
-        }
-    case let action as UpdateGraphableTimestamps:
-        let peripheral = getPeripheral(&state, action.peripheral)
-        peripheral.activeMeasurement?.graphableTimestamps = action.timestamps
-        saveOften(&state, peripheral)
-    case let action as UpdateGraphableChannels:
-        let peripheral = getPeripheral(&state, action.peripheral)
-        peripheral.activeMeasurement?.graphableChannels = action.channels
-        saveOften(&state, peripheral)
     case let action as AppendToast:
         state.toastQueue.append(action.message)
     case _ as ProcessToast:
