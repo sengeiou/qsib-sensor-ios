@@ -1,8 +1,0 @@
-app_identifier("com.nw-qsib.QsibSensor") # The bundle identifier of your app
-apple_id("jwtrueb@yahoo.com") # Your Apple email address
-
-itc_team_id("120821767") # App Store Connect Team ID
-team_id("NAMGM3XHJV") # Developer Portal Team ID
-
-# For more information about the Appfile, see:
-#     https://docs.fastlane.tools/advanced/#appfile
