@@ -38,6 +38,7 @@ class RamDataSet: DataSetProtocol {
     var start: Date?
     var payloadCount: UInt64
     var sampleCount: UInt64
+    var _payloadLock = pthread_mutex_t()
     var _channelBufSize: UInt32
     var _channelLock = pthread_mutex_t()
     var _channelData: UnsafeMutablePointer<UnsafeMutablePointer<Double>?>?
@@ -60,6 +61,7 @@ class RamDataSet: DataSetProtocol {
         _channelBufSize = 0
         _timestampBufSize = 0
         
+        pthread_mutex_init(&_payloadLock, nil)
         pthread_mutex_init(&_channelLock, nil)
         pthread_mutex_init(&_timestampLock, nil)
         
@@ -154,6 +156,11 @@ class RamDataSet: DataSetProtocol {
         }
         
         let len = min(UInt16(data.count), UInt16(data[0]) + (UInt16(data[1]) << 8))
+        
+        pthread_mutex_lock(&_payloadLock)
+        defer {
+            pthread_mutex_unlock(&_payloadLock)
+        }
         
         var samples: UInt32? = nil
         data.withUnsafeBytes({ (buf_ptr: UnsafeRawBufferPointer) in

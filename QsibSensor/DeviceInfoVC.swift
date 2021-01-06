@@ -186,7 +186,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                 let storyboard = UIStoryboard(name: "Main", bundle: nil)
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
                 editorVC.headerLabelText = "Project Mode"
-                editorVC.options = [SHUNT_MONITOR_V1, "Milk Sensor v0", MWV_PPG_V2]
+                editorVC.options = [SHUNT_MONITOR_V1, "Milk Sensor v0", MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2]
                 if let projectMode = peripheral.projectMode {
                     editorVC.proposedValue = editorVC.options.firstIndex(of: "\(projectMode)") ?? 0
                     editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(projectMode)")

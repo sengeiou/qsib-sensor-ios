@@ -12,6 +12,7 @@ import Toast
 
 let MWV_PPG_V2 = "Mutliwavelength PPG V2"
 let SHUNT_MONITOR_V1 = "Shunt Monitor V1"
+let SKIN_HYDRATION_SENSOR_V2 = "Skin Hydration V2"
 
 
 class MwvPpgV2ModeCodableState: Codable {
@@ -23,11 +24,21 @@ class MwvPpgV2ModeCodableState: Codable {
     var drive: Int?
 }
 
+class ShuntMonitorV1CodableState: Codable {
+    var mode: String?
+}
+
+class SkinHydrationV2CodableState: Codable {
+    var mode: String?
+}
+
 class ProjectCodableState: Codable {
     var version: Int = 1
     var defaultMode: String?
     
-    var mwv_ppg_v2_modes: [String: MwvPpgV2ModeCodableState]?
+    var mwv_ppg_v2_modes: [String: MwvPpgV2ModeCodableState] = [:]
+    var sm_v1_modes: [String: ShuntMonitorV1CodableState] = [:]
+    var shs_v2_modes: [String: SkinHydrationV2CodableState] = [:]
 }
 
 class QSPeripheralCodableState: Codable {
@@ -199,23 +210,57 @@ class QSPeripheral {
         }
     }
     
+    public func start() {
+        switch projectMode ?? "" {
+        case MWV_PPG_V2:
+            writeProjectControlForPpg()
+        case SHUNT_MONITOR_V1:
+            writeProjectControlForShuntMonitor()
+        case SKIN_HYDRATION_SENSOR_V2:
+            writeProjectControlForSkinHydrationV2()
+        default:
+            fatalError("Unsupported peripheral type to use to start measurement \(String(describing: projectMode))")
+        }
+    }
+    
+    public func resume() {
+        // doesn't need to be different for any devices at the moment
+        start()
+    }
+    
     public func pause() {
-        let data = Data([
-            UInt8(0x01),                        // Command
-            UInt8(0),                           // Mode
-            UInt8(0),                           // ATIME
-            UInt8(0),                           // ASTEP H
-            UInt8(0),                           // ASTEP L
-            UInt8(0),                           // AGAIN
-            UInt8(0),                           // WCYCLES
-            UInt8(0)                            // DRIVE
-            ])
-        writeControl(data: data)
+        switch self.projectMode ?? "" {
+        case MWV_PPG_V2:
+            let data = Data([
+                UInt8(0x01),                        // Command
+                UInt8(0),                           // Mode
+                UInt8(0),                           // ATIME
+                UInt8(0),                           // ASTEP H
+                UInt8(0),                           // ASTEP L
+                UInt8(0),                           // AGAIN
+                UInt8(0),                           // WCYCLES
+                UInt8(0)                            // DRIVE
+                ])
+            writeControl(data: data)
+        case SHUNT_MONITOR_V1:
+            writeControl(data: Data([0x00]))
+        case SKIN_HYDRATION_SENSOR_V2:
+            writeControl(data: Data([0x00]))
+        default:
+            fatalError("Don't know how to pause \(String(describing: self.projectMode))")
+        }
     }
     
     public func turnOff() {
-        let data = Data(repeating: 0xFF, count: 23)
-        writeControl(data: data)
+        switch self.projectMode ?? "" {
+        case MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2:
+            pause()
+        case SHUNT_MONITOR_V1:
+            let data = Data(repeating: 0xFF, count: 23)
+            writeControl(data: data)
+        default:
+            fatalError("Don't know how to turn off \(String(describing: self.projectMode))")
+        }
     }
     
     /*!
@@ -251,7 +296,7 @@ class QSPeripheral {
      */
     public func writeProjectControlForPpg() {
         if let mode = projects[MWV_PPG_V2]?.defaultMode,
-            let modeInfo = projects[MWV_PPG_V2]?.mwv_ppg_v2_modes?[mode],
+            let modeInfo = projects[MWV_PPG_V2]?.mwv_ppg_v2_modes[mode],
             let atime = modeInfo.atime,
             let astep = modeInfo.astep,
             let again = modeInfo.again,
@@ -295,13 +340,17 @@ class QSPeripheral {
         writeControl(data: data)
     }
     
+    public func writeProjectControlForSkinHydrationV2() {
+        let data = Data([0x02, 0x01])
+        writeControl(data: data)
+    }
+    
     public func getOrDefaultProject() -> ProjectCodableState {
         switch projectMode ?? "" {
         case MWV_PPG_V2:
             if projects[MWV_PPG_V2] == nil {
                 let projectState = ProjectCodableState()
                 projectState.defaultMode = "IDLE"
-                projectState.mwv_ppg_v2_modes = [:]
                 
                 let idleState = MwvPpgV2ModeCodableState()
                 idleState.mode = "IDLE"
@@ -310,7 +359,7 @@ class QSPeripheral {
                 idleState.again = 9
                 idleState.wcycles = 179
                 idleState.drive = 4
-                projectState.mwv_ppg_v2_modes![idleState.mode!] = idleState
+                projectState.mwv_ppg_v2_modes[idleState.mode!] = idleState
                 
                 let mode0State = MwvPpgV2ModeCodableState()
                 mode0State.mode = "MODE 0"
@@ -319,7 +368,7 @@ class QSPeripheral {
                 mode0State.again = 9
                 mode0State.wcycles = 179
                 mode0State.drive = 4
-                projectState.mwv_ppg_v2_modes![mode0State.mode!] = mode0State
+                projectState.mwv_ppg_v2_modes[mode0State.mode!] = mode0State
 
                 let mode1State = MwvPpgV2ModeCodableState()
                 mode1State.mode = "MODE 1"
@@ -328,7 +377,7 @@ class QSPeripheral {
                 mode1State.again = 9
                 mode1State.wcycles = 179
                 mode1State.drive = 4
-                projectState.mwv_ppg_v2_modes![mode1State.mode!] = mode1State
+                projectState.mwv_ppg_v2_modes[mode1State.mode!] = mode1State
 
                 let mode2State = MwvPpgV2ModeCodableState()
                 mode2State.mode = "MODE 2"
@@ -337,7 +386,7 @@ class QSPeripheral {
                 mode2State.again = 9
                 mode2State.wcycles = 179
                 mode2State.drive = 4
-                projectState.mwv_ppg_v2_modes![mode2State.mode!] = mode2State
+                projectState.mwv_ppg_v2_modes[mode2State.mode!] = mode2State
 
                 let mode3State = MwvPpgV2ModeCodableState()
                 mode3State.mode = "MODE 3"
@@ -346,10 +395,47 @@ class QSPeripheral {
                 mode3State.again = 9
                 mode3State.wcycles = 179
                 mode3State.drive = 4
-                projectState.mwv_ppg_v2_modes![mode3State.mode!] = mode3State
+                projectState.mwv_ppg_v2_modes[mode3State.mode!] = mode3State
 
                 
                 projects[MWV_PPG_V2] = projectState
+            }
+            
+            guard let project = projects[projectMode ?? ""] else {
+                fatalError("Inconsistent app state for project \(self)")
+            }
+            
+            return project
+        case SHUNT_MONITOR_V1:
+            if projects[SHUNT_MONITOR_V1] == nil {
+                let projectState = ProjectCodableState()
+                projectState.defaultMode = "MODE 0"
+                
+                let mode0State = ShuntMonitorV1CodableState()
+                mode0State.mode = "MODE 0"
+                
+                projectState.sm_v1_modes[mode0State.mode!] = mode0State
+                
+                projects[SHUNT_MONITOR_V1] = projectState
+            }
+            
+            guard let project = projects[projectMode ?? ""] else {
+                fatalError("Inconsistent app state for project \(self)")
+            }
+            
+            return project
+
+        case SKIN_HYDRATION_SENSOR_V2:
+            if projects[SKIN_HYDRATION_SENSOR_V2] == nil {
+                let projectState = ProjectCodableState()
+                projectState.defaultMode = "MODE 0"
+                
+                let mode0State = SkinHydrationV2CodableState()
+                mode0State.mode = "MODE 0"
+                
+                projectState.shs_v2_modes[mode0State.mode!] = mode0State
+                
+                projects[SKIN_HYDRATION_SENSOR_V2] = projectState
             }
             
             guard let project = projects[projectMode ?? ""] else {

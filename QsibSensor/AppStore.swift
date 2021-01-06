@@ -260,6 +260,31 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as UpdateProjectMode:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.projectMode = action.projectMode
+        switch peripheral.projectMode ?? "" {
+        case MWV_PPG_V2:
+            if peripheral.signalHz == nil {
+                peripheral.signalHz = 1
+            }
+            if peripheral.signalChannels == nil {
+                peripheral.signalChannels = 6
+            }
+        case SHUNT_MONITOR_V1:
+            if peripheral.signalHz == nil {
+                peripheral.signalHz = 512
+            }
+            if peripheral.signalChannels == nil {
+                peripheral.signalChannels = 5
+            }
+        case SKIN_HYDRATION_SENSOR_V2:
+            if peripheral.signalHz == nil {
+                peripheral.signalHz = 256
+            }
+            if peripheral.signalChannels == nil {
+                peripheral.signalChannels = 3
+            }
+        default:
+            fatalError("Not setting or checking project defaults for \(String(describing: peripheral.projectMode))")
+        }
         save(&state, peripheral)
     case let action as UpdateSignalHz:
         let peripheral = getPeripheral(&state, action.peripheral)
@@ -274,27 +299,9 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         if let numChannels = peripheral.signalChannels {
             peripheral.activeMeasurement = QsMeasurement(signalChannels: UInt8(numChannels))
             peripheral.activeMeasurement?.state = .running
-            
-            switch peripheral.projectMode ?? "" {
-            case MWV_PPG_V2:
-                let state = peripheral.getOrDefaultProject()
-                let currentMode: String = state.defaultMode!
-                let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
-                let hz = 1000.0 / wtime
-                peripheral.activeMeasurement!.startNewDataSet(hz: hz)
-                peripheral.writeProjectControlForPpg()
-            case SHUNT_MONITOR_V1:
-                if let hz = peripheral.signalHz {
-                    peripheral.activeMeasurement!.startNewDataSet(hz: Float(hz))
-                    peripheral.writeProjectControlForShuntMonitor()
-                }
-            default:
-                if let hz = peripheral.signalHz {
-                    peripheral.activeMeasurement!.startNewDataSet(hz: Float(hz))
-                    let data = Data([0x69])
-                    ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
-                }
-            }
+            LOGGER.debug("Starting measurement ...")
+            startNewDataSet(for: peripheral)
+            peripheral.start()
             save(&state, peripheral)
         } else {
             LOGGER.error("Number of channels not set. Cannot start measurement")
@@ -302,51 +309,22 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as ResumeMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .running
-        
-        switch peripheral.projectMode ?? "" {
-        case MWV_PPG_V2:
-            peripheral.writeProjectControlForPpg()
-        case SHUNT_MONITOR_V1:
-            peripheral.writeProjectControlForShuntMonitor()
-        default:
-            let data = Data([0x69])
-            ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
-        }
+        LOGGER.debug("Resuming measurement ...")
+        startNewDataSet(for: peripheral)
+        peripheral.resume()
     case let action as PauseMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .paused
-        LOGGER.info("Starting new dataset due to handling pause")
-        
-        switch peripheral.projectMode ?? "" {
-        case MWV_PPG_V2:
-            let state = peripheral.getOrDefaultProject()
-            let currentMode: String = state.defaultMode!
-            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
-            let hz = 1000.0 / wtime
-            peripheral.activeMeasurement?.startNewDataSet(hz: hz)
-            peripheral.pause()
-        default:
-            let params = peripheral.activeMeasurement?.dataSets.last?.getParams()
-            peripheral.activeMeasurement?.startNewDataSet(hz: params?.hz ?? 0, scaler: params?.scaler ?? 1)
-            let data = Data([0x00])
-            ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
-        }
+        startNewDataSet(for: peripheral)
+        peripheral.pause()
     case let action as StopMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         if let activeMeasurement = peripheral.activeMeasurement {
             peripheral.activeMeasurement?.state = .ended
             peripheral.finalizedMeasurements.append(activeMeasurement)
             peripheral.activeMeasurement = nil
+            peripheral.pause()
             save(&state, peripheral)
-            
-            
-            switch peripheral.projectMode ?? "" {
-            case MWV_PPG_V2:
-                peripheral.pause()
-            default:
-                let data = Data([0x00])
-                ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
-            }
         } else {
             LOGGER.trace("No active measurement to stop")
         }
@@ -357,11 +335,13 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         peripheral.turnOff()
     case let action as IssueControlWriteFor:
         let peripheral = getPeripheral(&state, action.peripheral)
+        startNewDataSet(for: peripheral)
+        
         switch action.projectMode {
         case MWV_PPG_V2:
             let state = peripheral.getOrDefaultProject()
             let currentMode: String = state.defaultMode!
-            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
+            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
             let hz = 1000.0 / wtime
             peripheral.activeMeasurement?.startNewDataSet(hz: hz)
             peripheral.writeProjectControlForPpg()
@@ -426,10 +406,25 @@ func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral, rssi: NS
 func save(_ state: inout AppState, _ peripheral: QSPeripheral) {
     LOGGER.trace("Saving \(peripheral.id()) ...")
     peripheral.save()
-    saveOften(&state, peripheral)
 }
 
-func saveOften(_ state: inout AppState, _ peripheral: QSPeripheral) {
-//    state.peripherals[peripheral.id()] = peripheral
+func startNewDataSet(for peripheral: QSPeripheral) {
+    switch peripheral.projectMode ?? "" {
+    case MWV_PPG_V2:
+        let state = peripheral.getOrDefaultProject()
+        let currentMode: String = state.defaultMode!
+        let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
+        let hz = 1000.0 / wtime
+        peripheral.activeMeasurement?.startNewDataSet(hz: hz)
+    case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
+        if let hz = peripheral.signalHz {
+            peripheral.activeMeasurement?.startNewDataSet(hz: Float(hz))
+        } else {
+            peripheral.signalHz = 1
+            peripheral.activeMeasurement?.startNewDataSet(hz: Float(peripheral.signalHz!))
+        }
+    default:
+        fatalError("Don't know how to start new dataset for \(String(describing: peripheral.projectMode))")
+    }
 }
 
