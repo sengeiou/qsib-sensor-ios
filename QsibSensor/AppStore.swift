@@ -359,6 +359,11 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let peripheral = getPeripheral(&state, action.peripheral)
         switch action.projectMode {
         case MWV_PPG_V2:
+            let state = peripheral.getOrDefaultProject()
+            let currentMode: String = state.defaultMode!
+            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
+            let hz = 1000.0 / wtime
+            peripheral.activeMeasurement?.startNewDataSet(hz: hz)
             peripheral.writeProjectControlForPpg()
         case SHUNT_MONITOR_V1:
             peripheral.writeProjectControlForShuntMonitor()
