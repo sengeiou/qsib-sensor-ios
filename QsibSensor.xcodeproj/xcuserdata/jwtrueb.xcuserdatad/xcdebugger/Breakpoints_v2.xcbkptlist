@@ -14,8 +14,8 @@
             filePath = "QsibSensor/DeviceInfoVC.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "385"
-            endingLineNumber = "385"
+            startingLineNumber = "430"
+            endingLineNumber = "430"
             landmarkName = "unknown"
             landmarkType = "0">
          </BreakpointContent>
@@ -46,8 +46,8 @@
             filePath = "QsibSensor/QSPeripheral.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "108"
-            endingLineNumber = "108"
+            startingLineNumber = "121"
+            endingLineNumber = "121"
             landmarkName = "init(peripheral:rssi:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -126,8 +126,8 @@
             filePath = "QsibSensor/QSPeripheral.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "322"
-            endingLineNumber = "322"
+            startingLineNumber = "345"
+            endingLineNumber = "345"
             landmarkName = "writeProjectControlForPpg()"
             landmarkType = "7">
          </BreakpointContent>

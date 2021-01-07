@@ -24,6 +24,7 @@ let QSS_ERROR_UUID = CBUUID(string: "050062c4-b99e-4141-9439-c4f9db977899")
 let QSS_NAME_UUID = CBUUID(string: "060062c4-b99e-4141-9439-c4f9db977899")
 let QSS_UUID_UUID = CBUUID(string: "070062c4-b99e-4141-9439-c4f9db977899")
 let QSS_BOOT_COUNT_UUID = CBUUID(string: "080062c4-b99e-4141-9439-c4f9db977899")
+let QSS_SHS_CONF_UUID = CBUUID(string: "090062c4-b99e-4141-9439-c4f9db977899")
 
 
 class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
@@ -166,6 +167,9 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
                 case QSS_BOOT_COUNT_UUID:
                     LOGGER.trace("Discovered QSS_BOOT_COUNT_UUID: \(QSS_BOOT_COUNT_UUID)")
                     peripheral.readValue(for: characteristic)
+                case QSS_SHS_CONF_UUID:
+                    LOGGER.trace("Discovered QSS_SHS_CONF_UUID: \(QSS_SHS_CONF_UUID)")
+                    peripheral.readValue(for: characteristic)
                 default:
                     LOGGER.warning("Discovered unexpected QSS Characteristic: \(characteristic)")
                 }
@@ -227,6 +231,15 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             let bootCount = Int(beforeOrderBootCount)
             LOGGER.trace("Updated QSS_BOOT_COUNT_UUID: \(QSS_BOOT_COUNT_UUID) :: \(bootCount)")
             ACTION_DISPATCH(action: DidUpdateValueForBootCount(peripheral: peripheral, value: bootCount))
+        case QSS_SHS_CONF_UUID:
+            guard let data = characteristic.value, data.count == 8 else {
+                return
+            }
+            LOGGER.trace("Updated QSS_SHS_CONF_UUID: \(QSS_SHS_CONF_UUID) :: \(data.hexEncodedString())")
+            let persistedConfig = PersistedConfig()
+            persistedConfig.f0 = data[0..<4].withUnsafeBytes { $0.load(as: Float.self) }
+            persistedConfig.f1 = data[4..<8].withUnsafeBytes { $0.load(as: Float.self) }
+            ACTION_DISPATCH(action: DidUpdateValueForPersistedConfig(peripheral: peripheral, value: persistedConfig))
         default:
             LOGGER.warning("Updated unexpected characteristic: \(characteristic)")
         }

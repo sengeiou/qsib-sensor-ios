@@ -41,6 +41,11 @@ class ProjectCodableState: Codable {
     var shs_v2_modes: [String: SkinHydrationV2CodableState] = [:]
 }
 
+class PersistedConfig: Codable {
+    var f0: Float?
+    var f1: Float?
+}
+
 class QSPeripheralCodableState: Codable {
     var projectMode: String?
     var signalHz: Int?
@@ -50,6 +55,8 @@ class QSPeripheralCodableState: Codable {
     var hardwareVersion: String?
     var persistedName: String?
     var uniqueIdentifier: String?
+    
+    var persistedConfig: PersistedConfig?
 
     var projects: [String: ProjectCodableState] = [:]
         
@@ -62,6 +69,8 @@ class QSPeripheralCodableState: Codable {
         _ hardwareVersion: String?,
         _ persistedName: String?,
         _ uniqueIdentifier: String?,
+        
+        _ persistedConfig: PersistedConfig?,
 
         _ projects: [String: ProjectCodableState]
     ) {
@@ -73,6 +82,8 @@ class QSPeripheralCodableState: Codable {
         self.hardwareVersion = hardwareVersion
         self.persistedName = persistedName
         self.uniqueIdentifier = uniqueIdentifier
+        
+        self.persistedConfig = persistedConfig
 
         self.projects = projects
     }
@@ -97,6 +108,8 @@ class QSPeripheral {
     var persistedName: String?
     var uniqueIdentifier: String?
     var bootCount: Int?
+    
+    var persistedConfig: PersistedConfig?
     
     var activeMeasurement: QsMeasurement?
     var finalizedMeasurements: [QsMeasurement] = []
@@ -127,6 +140,7 @@ class QSPeripheral {
         hardwareVersion = state.hardwareVersion
         persistedName = state.persistedName
         uniqueIdentifier = state.uniqueIdentifier
+        persistedConfig = state.persistedConfig
         projects = state.projects
     }
     
@@ -139,6 +153,7 @@ class QSPeripheral {
             hardwareVersion,
             persistedName,
             uniqueIdentifier,
+            persistedConfig,
             projects)
         
         if let json = try? JSONEncoder().encode(state) {
@@ -198,6 +213,14 @@ class QSPeripheral {
         writeStringToChar(cbuuid: QSS_UUID_UUID, value: value)
     }
     
+    public func writePersistedConfig() {
+        let floats: [Float] = [persistedConfig?.f0 ?? 10, persistedConfig?.f1 ?? 0]
+        let data = floats.withUnsafeBufferPointer { Data(buffer: $0) }
+        LOGGER.trace("Writing persisted config: \(data.hexEncodedString())")
+        assert(data.count == 8)
+        writeDataToChar(cbuuid: QSS_SHS_CONF_UUID, data: data)
+    }
+    
     private func writeStringToChar(cbuuid: CBUUID, value: String) {
         writeDataToChar(cbuuid: cbuuid, data: Data(value.utf8))
     }
@@ -245,7 +268,7 @@ class QSPeripheral {
         case SHUNT_MONITOR_V1:
             writeControl(data: Data([0x00]))
         case SKIN_HYDRATION_SENSOR_V2:
-            writeControl(data: Data([0x00]))
+            writeControl(data: Data([0x01, 0x00]))
         default:
             fatalError("Don't know how to pause \(String(describing: self.projectMode))")
         }

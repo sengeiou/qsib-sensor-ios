@@ -104,6 +104,11 @@ struct DidUpdateValueForBootCount: Action {
     let value: Int
 }
 
+struct DidUpdateValueForPersistedConfig: Action {
+    let peripheral: CBPeripheral
+    let value: PersistedConfig
+}
+
 struct WriteControl: Action {
     let peripheral: CBPeripheral
     let control: Data
@@ -122,6 +127,16 @@ struct WriteName: Action {
 struct WriteUniqueIdentifier: Action {
     let peripheral: CBPeripheral
     let uniqueIdentifier: String
+}
+
+struct WriteCalibrationFactor0: Action {
+    let peripheral: CBPeripheral
+    let f0: Float
+}
+
+struct WriteCalibrationFactor1: Action {
+    let peripheral: CBPeripheral
+    let f1: Float
 }
 
 struct UpdateProjectMode: Action {
@@ -245,6 +260,10 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.bootCount = action.value
         save(&state, peripheral)
+    case let action as DidUpdateValueForPersistedConfig:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.persistedConfig = action.value
+        save(&state, peripheral)
     case let action as WriteControl:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.writeControl(data: action.control)
@@ -257,6 +276,20 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as WriteUniqueIdentifier:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.writeUniqueIdentifier(value: action.uniqueIdentifier)
+    case let action as WriteCalibrationFactor0:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        if nil == peripheral.persistedConfig {
+            peripheral.persistedConfig = PersistedConfig()
+        }
+        peripheral.persistedConfig!.f0 = action.f0
+        peripheral.writePersistedConfig()
+    case let action as WriteCalibrationFactor1:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        if nil == peripheral.persistedConfig {
+            peripheral.persistedConfig = PersistedConfig()
+        }
+        peripheral.persistedConfig!.f1 = action.f1
+        peripheral.writePersistedConfig()
     case let action as UpdateProjectMode:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.projectMode = action.projectMode

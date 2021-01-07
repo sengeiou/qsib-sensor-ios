@@ -33,6 +33,8 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
         IndexPath(row: 5, section: 1), // Name
         IndexPath(row: 6, section: 1), // Unique Identifier
         IndexPath(row: 7, section: 1), // Boot Count
+        IndexPath(row: 8, section: 1), // Calibration
+        IndexPath(row: 9, section: 1), // Calibration
     ]
     
     override func viewDidLoad() {
@@ -141,6 +143,12 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         let bootCountCell = tableView.cellForRow(at: indexPath)
                         bootCountCell?.detailTextLabel?.text = "\(peripheral.bootCount ?? 0)"
                         break
+                    case 8:
+                        let cf0Cell = tableView.cellForRow(at: indexPath)
+                        cf0Cell?.detailTextLabel?.text = "\(peripheral.persistedConfig?.f0 ?? -1)"
+                    case 9:
+                        let cf1Cell = tableView.cellForRow(at: indexPath)
+                        cf1Cell?.detailTextLabel?.text = "\(peripheral.persistedConfig?.f1 ?? -1)"
                     default:
                         fatalError("Invalid row selection for \(indexPath)")
                     }
@@ -373,6 +381,43 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
             case 7:
                 // not allowed
                 break
+            case 8:
+                let storyboard = UIStoryboard(name: "Main", bundle: nil)
+                let editorVC  = storyboard.instantiateViewController(withIdentifier: "textAttributeEditorVC") as! textAttributeEditorVC
+                editorVC.headerLabelText = "Calibration Factor 0"
+                editorVC.placeholderValue = String.init(format: "%.03f", peripheral.persistedConfig?.f0 ?? 10)
+                editorVC.confirmedValue = String.init(format: "%.03f", peripheral.persistedConfig?.f0 ?? Float.infinity)
+                editorVC.proposedValue = String.init(format: "%.03f", peripheral.persistedConfig?.f0 ?? Float.infinity)
+                editorVC.predicate = { $0.range(of: "^-?[0-9]+(.[0-9]+)?$", options: .regularExpression) != nil }
+                editorVC.actionFactory = { inputString in
+                    if let peripheral = peripheral.cbp {
+                        LOGGER.info("Issuing write for calibration factor 0: \(inputString)")
+                        return WriteCalibrationFactor0(peripheral: peripheral, f0: Float(inputString)!)
+                    } else {
+                        LOGGER.error("No peripheral available to issue write for calibration factor 0: \(inputString)")
+                        return Tick()
+                    }
+                }
+                self.present(editorVC, animated: true)
+            case 9:
+                let storyboard = UIStoryboard(name: "Main", bundle: nil)
+                let editorVC  = storyboard.instantiateViewController(withIdentifier: "textAttributeEditorVC") as! textAttributeEditorVC
+                editorVC.headerLabelText = "Calibration Factor 1"
+                editorVC.placeholderValue = String.init(format: "%.03f", peripheral.persistedConfig?.f1 ?? 10)
+                editorVC.confirmedValue = String.init(format: "%.03f", peripheral.persistedConfig?.f1 ?? Float.infinity)
+                editorVC.proposedValue = String.init(format: "%.03f", peripheral.persistedConfig?.f1 ?? Float.infinity)
+                editorVC.predicate = { $0.range(of: "^-?[0-9]+(.[0-9]+)?$", options: .regularExpression) != nil }
+                editorVC.actionFactory = { inputString in
+                    if let peripheral = peripheral.cbp {
+                        LOGGER.info("Issuing write for calibration factor 1: \(inputString)")
+                        return WriteCalibrationFactor1(peripheral: peripheral, f1: Float(inputString)!)
+                    } else {
+                        LOGGER.error("No peripheral available to issue write for calibration factor 1: \(inputString)")
+                        return Tick()
+                    }
+                }
+                self.present(editorVC, animated: true)
+
             default:
                 fatalError("Invalid row selection for \(indexPath)")
             }
