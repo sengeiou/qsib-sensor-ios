@@ -52,7 +52,7 @@ class textAttributeEditorVC: UIViewController {
         self.proposedValue = textField.text
         self.confirmButton.isEnabled = self.proposedValue != self.confirmedValue && self.predicate(self.proposedValue)
         if self.confirmButton.isEnabled {
-            ACTION_DISPATCH(action: self.actionFactory(self.proposedValue))
+            QSIB_ACTION_DISPATCH(action: self.actionFactory(self.proposedValue))
             self.dismiss(animated: true)
         }
     }
@@ -92,7 +92,7 @@ class pickerAttributeEditorVC: UIViewController, UIPickerViewDelegate, UIPickerV
         self.proposedValue = self.valuePicker.selectedRow(inComponent: 0)
         self.confirmButton.isEnabled = self.proposedValue != self.confirmedValue && self.predicate(self.proposedValue)
         if self.confirmButton.isEnabled {
-            ACTION_DISPATCH(action: self.actionFactory(self.proposedValue))
+            QSIB_ACTION_DISPATCH(action: self.actionFactory(self.proposedValue))
             self.dismiss(animated: true)
         }
     }

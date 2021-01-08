@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		060C372F256C49F200DEF35F /* DeviceInfoVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060C372E256C49F200DEF35F /* DeviceInfoVC.swift */; };
+		060DE7A425A8CABD00A09FCA /* QsibVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060DE7A325A8CABD00A09FCA /* QsibVersion.swift */; };
 		06153A9025682C4000889A21 /* Toast in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A8F25682C4000889A21 /* Toast */; };
 		06153A9425682C6D00889A21 /* ReSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A9325682C6D00889A21 /* ReSwift */; };
 		06153A9825682C9100889A21 /* Charts in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A9725682C9100889A21 /* Charts */; };
@@ -32,7 +33,7 @@
 		06A86AB92568312100B30115 /* NIOConcurrencyHelpers in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86AB82568312100B30115 /* NIOConcurrencyHelpers */; };
 		06A86ABB2568312100B30115 /* NIOTestUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86ABA2568312100B30115 /* NIOTestUtils */; };
 		06A86ABD2568312100B30115 /* NIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86ABC2568312100B30115 /* NIO */; };
-		06A8B533256833BD00880CE8 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A8B532256833BD00880CE8 /* AppStore.swift */; };
+		06A8B533256833BD00880CE8 /* QsibStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A8B532256833BD00880CE8 /* QsibStore.swift */; };
 		06BA97BD2576B56C007FFB75 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 06BA97BC2576B56C007FFB75 /* ZIPFoundation */; };
 		06DC88EE256C1B70006A2B97 /* QSPeripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */; };
 		06F8864A25A4C58F001D423B /* StatusControlVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06F8864925A4C58F001D423B /* StatusControlVC.swift */; };
@@ -41,6 +42,7 @@
 
 /* Begin PBXFileReference section */
 		060C372E256C49F200DEF35F /* DeviceInfoVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfoVC.swift; sourceTree = "<group>"; };
+		060DE7A325A8CABD00A09FCA /* QsibVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibVersion.swift; sourceTree = "<group>"; };
 		0630F8F8256D9EDE00559577 /* InspectDataVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectDataVC.swift; sourceTree = "<group>"; };
 		068E70672565AC2F00673E32 /* QsibSensor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QsibSensor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		068E706A2565AC2F00673E32 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -59,7 +61,7 @@
 		069DCB4325A8BF31001B1247 /* qsib_sensor_lib_rs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = qsib_sensor_lib_rs.h; sourceTree = "<group>"; };
 		06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBluetoothDelegate.swift; sourceTree = "<group>"; };
 		06A8B5302568339D00880CE8 /* QsibSensor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QsibSensor.entitlements; sourceTree = "<group>"; };
-		06A8B532256833BD00880CE8 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		06A8B532256833BD00880CE8 /* QsibStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibStore.swift; sourceTree = "<group>"; };
 		06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QSPeripheral.swift; sourceTree = "<group>"; };
 		06F8864925A4C58F001D423B /* StatusControlVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusControlVC.swift; sourceTree = "<group>"; };
 		06F8864C25A4CEB6001D423B /* ConnectedDeviceVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedDeviceVC.swift; sourceTree = "<group>"; };
@@ -120,9 +122,6 @@
 				068E70782565AC3200673E32 /* Info.plist */,
 				068E70842565ACAC00673E32 /* QsibSensor-Bridging-Header.h */,
 				068E708B2565BD2E00673E32 /* DevicesTableVC.swift */,
-				06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */,
-				06A8B532256833BD00880CE8 /* AppStore.swift */,
-				06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */,
 				060C372E256C49F200DEF35F /* DeviceInfoVC.swift */,
 				0630F8F8256D9EDE00559577 /* InspectDataVC.swift */,
 				06F8864925A4C58F001D423B /* StatusControlVC.swift */,
@@ -146,7 +145,11 @@
 			children = (
 				069DCB4325A8BF31001B1247 /* qsib_sensor_lib_rs.h */,
 				068E706A2565AC2F00673E32 /* AppDelegate.swift */,
+				06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */,
 				068E70872565AE4200673E32 /* QsibSensorLib.swift */,
+				06A8B532256833BD00880CE8 /* QsibStore.swift */,
+				06DC88ED256C1B70006A2B97 /* QSPeripheral.swift */,
+				060DE7A325A8CABD00A09FCA /* QsibVersion.swift */,
 			);
 			path = QsibShared;
 			sourceTree = "<group>";
@@ -245,6 +248,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				068E706F2565AC2F00673E32 /* MainViewController.swift in Sources */,
+				060DE7A425A8CABD00A09FCA /* QsibVersion.swift in Sources */,
 				06F8864A25A4C58F001D423B /* StatusControlVC.swift in Sources */,
 				068E708C2565BD2E00673E32 /* DevicesTableVC.swift in Sources */,
 				069DCB4025A8BEEF001B1247 /* EditorVCs.swift in Sources */,
@@ -253,7 +257,7 @@
 				068E706D2565AC2F00673E32 /* SceneDelegate.swift in Sources */,
 				06F8864D25A4CEB6001D423B /* ConnectedDeviceVC.swift in Sources */,
 				06DC88EE256C1B70006A2B97 /* QSPeripheral.swift in Sources */,
-				06A8B533256833BD00880CE8 /* AppStore.swift in Sources */,
+				06A8B533256833BD00880CE8 /* QsibStore.swift in Sources */,
 				0630F8F9256D9EDE00559577 /* InspectDataVC.swift in Sources */,
 				060C372F256C49F200DEF35F /* DeviceInfoVC.swift in Sources */,
 				06A86AAB256830BC00B30115 /* AppBluetoothDelegate.swift in Sources */,

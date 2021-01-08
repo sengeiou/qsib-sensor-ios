@@ -12,14 +12,14 @@ import ReSwift
 import Toast
 
 
-struct AppState: StateType {
+public struct QsibState: StateType {
     var ble: AppBluetoothDelegate? = nil
     var peripherals: [UUID: QSPeripheral] = [:]
     var toastQueue: [ToastMessage] = []
     var activePeripheral: UUID?
 }
 
-struct ToastMessage {
+public struct ToastMessage {
     let id = UUID()
     var message: String? = nil
     var duration: TimeInterval = TimeInterval(3)
@@ -30,165 +30,165 @@ struct ToastMessage {
     var completion: ((Bool) -> Void)? = nil
 }
 
-struct InitBle: Action {
+public struct InitBle: Action {
     let delegate: AppBluetoothDelegate
 }
 
-struct DidDiscover: Action {
+public struct DidDiscover: Action {
     let peripheral: CBPeripheral
     let rssi: NSNumber
 }
 
-struct RequestConnect: Action {
+public struct RequestConnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct DidConnect: Action {
+public struct DidConnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct RequestDisconnect: Action {
+public struct RequestDisconnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct DidDisconnect: Action {
+public struct DidDisconnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct DidFailToConnect: Action {
+public struct DidFailToConnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct DidDiscoverCharacteristic: Action {
+public struct DidDiscoverCharacteristic: Action {
     let peripheral: CBPeripheral
     let characteristic: CBCharacteristic
 }
 
-struct DidUpdateValueForBattery: Action {
+public struct DidUpdateValueForBattery: Action {
     let peripheral: CBPeripheral
     let batteryLevel: UInt8
 }
 
-struct DidUpdateValueForSignal: Action {
+public struct DidUpdateValueForSignal: Action {
     let peripheral: CBPeripheral
     let signal: Data
 }
 
-struct DidUpdateValueForFirmwareVersion: Action {
+public struct DidUpdateValueForFirmwareVersion: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForHardwareVersion: Action {
+public struct DidUpdateValueForHardwareVersion: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForError: Action {
+public struct DidUpdateValueForError: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForName: Action {
+public struct DidUpdateValueForName: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForUniqueIdentifier: Action {
+public struct DidUpdateValueForUniqueIdentifier: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForBootCount: Action {
+public struct DidUpdateValueForBootCount: Action {
     let peripheral: CBPeripheral
     let value: Int
 }
 
-struct DidUpdateValueForPersistedConfig: Action {
+public struct DidUpdateValueForPersistedConfig: Action {
     let peripheral: CBPeripheral
     let value: PersistedConfig
 }
 
-struct WriteControl: Action {
+public struct WriteControl: Action {
     let peripheral: CBPeripheral
     let control: Data
 }
 
-struct WriteHardwareVersion: Action {
+public struct WriteHardwareVersion: Action {
     let peripheral: CBPeripheral
     let hardwareVersion: String
 }
 
-struct WriteName: Action {
+public struct WriteName: Action {
     let peripheral: CBPeripheral
     let name: String
 }
 
-struct WriteUniqueIdentifier: Action {
+public struct WriteUniqueIdentifier: Action {
     let peripheral: CBPeripheral
     let uniqueIdentifier: String
 }
 
-struct WriteCalibrationFactor0: Action {
+public struct WriteCalibrationFactor0: Action {
     let peripheral: CBPeripheral
     let f0: Float
 }
 
-struct WriteCalibrationFactor1: Action {
+public struct WriteCalibrationFactor1: Action {
     let peripheral: CBPeripheral
     let f1: Float
 }
 
-struct UpdateProjectMode: Action {
+public struct UpdateProjectMode: Action {
     let peripheral: CBPeripheral
     let projectMode: String
 }
 
-struct UpdateSignalChannels: Action {
+public struct UpdateSignalChannels: Action {
     let peripheral: CBPeripheral
     let channels: Int
 }
 
-struct UpdateSignalHz: Action {
+public struct UpdateSignalHz: Action {
     let peripheral: CBPeripheral
     let hz: Int
 }
 
-struct StartMeasurement: Action {
+public struct StartMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
-struct ResumeMeasurement: Action {
+public struct ResumeMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
-struct PauseMeasurement: Action {
+public struct PauseMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
-struct StopMeasurement: Action {
+public struct StopMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
-struct TurnOffSensor: Action {
+public struct TurnOffSensor: Action {
     let peripheral: CBPeripheral
 }
 
-struct AppendToast: Action {
+public struct AppendToast: Action {
     let message: ToastMessage
 }
 
-struct ProcessToast: Action {}
+public struct ProcessToast: Action {}
 
-struct Tick: Action {}
+public struct QsibTick: Action {}
 
-struct IssueControlWriteFor: Action {
+public struct IssueControlWriteFor: Action {
     let peripheral: CBPeripheral
     let projectMode: String
 }
 
-func appReducer(action: Action, state: AppState?) -> AppState {
-    var state = state ?? AppState()
+func qsibReducer(action: Action, state: QsibState?) -> QsibState {
+    var state = state ?? QsibState()
     
     switch action {
     case _ as ReSwiftInit:
@@ -211,7 +211,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         state.ble?.centralManager.cancelPeripheralConnection(action.peripheral)
     case let action as DidDisconnect:
         let _ = getPeripheral(&state, action.peripheral)
-        ACTION_DISPATCH(action: StopMeasurement(peripheral: action.peripheral))
+        QSIB_ACTION_DISPATCH(action: StopMeasurement(peripheral: action.peripheral))
     case let action as DidFailToConnect:
         let _ = getPeripheral(&state, action.peripheral)
     case let action as DidUpdateValueForBattery:
@@ -231,7 +231,6 @@ func appReducer(action: Action, state: AppState?) -> AppState {
                 LOGGER.error("Failed to add payload to \(measurement)")
                 return
             }
-//            LOGGER.trace("Added \(samples) for updated signal value")
         }
     case let action as DidUpdateValueForFirmwareVersion:
         let peripheral = getPeripheral(&state, action.peripheral)
@@ -387,7 +386,7 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         state.toastQueue.append(action.message)
     case _ as ProcessToast:
         state.toastQueue.removeFirst()
-    case _ as Tick:
+    case _ as QsibTick:
         break
     default:
         LOGGER.warning("Skipped processing \(action)")
@@ -396,25 +395,25 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     return state
 }
 
-let STORE = Store<AppState>(
-    reducer: appReducer,
+public let QSIB_STORE = Store<QsibState>(
+    reducer: qsibReducer,
     state: nil
 )
 
-func ACTION_DISPATCH(action: Action) {
+public func QSIB_ACTION_DISPATCH(action: Action) {
     DISPATCH.execute {
-        STORE.dispatch(action)
+        QSIB_STORE.dispatch(action)
     }
 }
 
-func TICK() {
+public func QSIB_TICK() {
     DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-        ACTION_DISPATCH(action: Tick())
-        TICK()
+        QSIB_ACTION_DISPATCH(action: QsibTick())
+        QSIB_TICK()
     }
 }
 
-func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral) -> QSPeripheral {
+func getPeripheral(_ state: inout QsibState, _ peripheral: CBPeripheral) -> QSPeripheral {
     if let qsp = state.peripherals[peripheral.identifier] {
         qsp.set(peripheral: peripheral)
         state.peripherals[peripheral.identifier] = qsp
@@ -424,7 +423,7 @@ func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral) -> QSPer
     }
 }
 
-func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral, rssi: NSNumber) -> QSPeripheral {
+func getPeripheral(_ state: inout QsibState, _ peripheral: CBPeripheral, rssi: NSNumber) -> QSPeripheral {
     if let qsp = state.peripherals[peripheral.identifier] {
         qsp.set(peripheral: peripheral, rssi: rssi)
 //        state.peripherals[peripheral.identifier] = qsp
@@ -436,7 +435,7 @@ func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral, rssi: NS
     }
 }
 
-func save(_ state: inout AppState, _ peripheral: QSPeripheral) {
+func save(_ state: inout QsibState, _ peripheral: QSPeripheral) {
     LOGGER.trace("Saving \(peripheral.id()) ...")
     peripheral.save()
 }

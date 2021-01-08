@@ -65,7 +65,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ToastManager.shared.isQueueEnabled = true
         
         // Start State bump tick at regular intervals
-        TICK()
+        QSIB_TICK()
 
         return true
     }

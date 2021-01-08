@@ -23,16 +23,16 @@ class ConnectedDeviceVC: UITabBarController, StoreSubscriber {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
-        STORE.subscribe(self)
+        QSIB_STORE.subscribe(self)
     }
         
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         
-        STORE.unsubscribe(self)
+        QSIB_STORE.unsubscribe(self)
     }
     
-    func newState(state: AppState) {
+    func newState(state: QsibState) {
         if self.peripheral == nil || self.peripheral!.id() != state.activePeripheral {
             if let identifier = state.activePeripheral {
                 self.peripheral = state.peripherals[identifier]

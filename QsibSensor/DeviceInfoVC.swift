@@ -52,15 +52,15 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        STORE.subscribe(self)
+        QSIB_STORE.subscribe(self)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        STORE.unsubscribe(self)
+        QSIB_STORE.unsubscribe(self)
     }
     
-    func newState(state: AppState) {
+    func newState(state: QsibState) {
         var updateInfo = false
         if let identifier = state.activePeripheral {
             if let peripheral = state.peripherals[identifier] {
@@ -210,7 +210,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         return UpdateProjectMode(peripheral: peripheral, projectMode: selection)
                     } else {
                         LOGGER.error("No peripheral available to update hz: \(selection)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)
@@ -246,7 +246,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         }
                     } else {
                         LOGGER.error("No peripheral available to update hz: \(selection)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)
@@ -277,7 +277,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         }
                     } else {
                         LOGGER.error("No peripheral available to update channels: \(selection)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)
@@ -308,7 +308,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         }
                     } else {
                         LOGGER.error("No peripheral available to issue write for control: \(inputString)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)
@@ -333,7 +333,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         return WriteHardwareVersion(peripheral: peripheral, hardwareVersion: inputString)
                     } else {
                         LOGGER.error("No peripheral available to issue write for hardware version: \(inputString)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)
@@ -355,7 +355,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         return WriteName(peripheral: peripheral, name: inputString)
                     } else {
                         LOGGER.error("No peripheral available to issue write for name: \(inputString)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)
@@ -374,7 +374,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         return WriteUniqueIdentifier(peripheral: peripheral, uniqueIdentifier: inputString)
                     } else {
                         LOGGER.error("No peripheral available to issue write for unique identifier: \(inputString)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)
@@ -395,7 +395,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         return WriteCalibrationFactor0(peripheral: peripheral, f0: Float(inputString)!)
                     } else {
                         LOGGER.error("No peripheral available to issue write for calibration factor 0: \(inputString)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)
@@ -413,7 +413,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         return WriteCalibrationFactor1(peripheral: peripheral, f1: Float(inputString)!)
                     } else {
                         LOGGER.error("No peripheral available to issue write for calibration factor 1: \(inputString)")
-                        return Tick()
+                        return QsibTick()
                     }
                 }
                 self.present(editorVC, animated: true)

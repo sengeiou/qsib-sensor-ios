@@ -88,15 +88,15 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        STORE.subscribe(self)
+        QSIB_STORE.subscribe(self)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        STORE.unsubscribe(self)
+        QSIB_STORE.unsubscribe(self)
     }
     
-    func newState(state: AppState) {
+    func newState(state: QsibState) {
         var updateInfo = false
         if let identifier = state.activePeripheral {
             if let peripheral = state.peripherals[identifier] {
@@ -201,30 +201,30 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             switch indexPath.row {
             case 0:
                 LOGGER.debug("Selected turn off device ...")
-                ACTION_DISPATCH(action: TurnOffSensor(peripheral: peripheral.cbp))
+                QSIB_ACTION_DISPATCH(action: TurnOffSensor(peripheral: peripheral.cbp))
                 self.dismiss(animated: true)
             case 2:
                 LOGGER.debug("Selected start measurement ...")
                 if let measurementState = self.peripheral?.activeMeasurement?.state {
                     switch measurementState {
                     case .initial:
-                        ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
+                        QSIB_ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
                     case .paused:
-                        ACTION_DISPATCH(action: ResumeMeasurement(peripheral: peripheral.cbp))
+                        QSIB_ACTION_DISPATCH(action: ResumeMeasurement(peripheral: peripheral.cbp))
                     case .running:
-                        ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
+                        QSIB_ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
                     case .ended:
                         LOGGER.debug("Ignoring selection with ended active measurement on \(indexPath)")
                     }
                 } else {
-                    ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
+                    QSIB_ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
                 }
             case 3:
                 LOGGER.debug("Selected stop measurement ...")
                 if let measurementState = self.peripheral?.activeMeasurement?.state {
                     switch measurementState {
                     case .initial, .paused, .running, .ended:
-                        ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
+                        QSIB_ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
                     }
                 } else {
                     LOGGER.debug("Ignoring selection without active measurement on \(indexPath)")
@@ -235,7 +235,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     LOGGER.debug("Pausing for export from \(measurement.state)")
                     
                     // Pause
-                    ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
+                    QSIB_ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
                     
                     // Let the user know that we are working on it
                     DispatchQueue.main.async { self.view.makeToastActivity(.center) }
@@ -438,7 +438,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 LOGGER.debug("Selected mode \(selection)")
                 project.defaultMode = selection
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 1:
@@ -453,7 +453,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 LOGGER.debug("Selected atime \(selectedIndex)")
                 project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.atime = selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 2:
@@ -468,7 +468,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 LOGGER.debug("Selected atime \(selectedIndex)")
                 project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.astep = selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 3:
@@ -486,7 +486,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 LOGGER.debug("Selected again \(editorVC.options[selectedIndex])")
                 project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.again = selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 4:
@@ -524,7 +524,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 LOGGER.debug("Selected wtime \(editorVC.options[selectedIndex])")
                 project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.wcycles = firstOption + selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 5:
@@ -541,7 +541,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 LOGGER.debug("Selected led drive \(editorVC.options[selectedIndex])")
                 project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.drive = selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 6:
@@ -550,7 +550,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 return
             }
             LOGGER.debug("Selected apply project mode on \(mode)")
-            ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: mode))
+            QSIB_ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: mode))
 
         default:
             LOGGER.error("Unhandled row selection for \(MWV_PPG_V2) on \(indexPath)")

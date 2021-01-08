@@ -39,22 +39,22 @@ class MainViewController: UIViewController, StoreSubscriber {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        STORE.subscribe(self)
+        QSIB_STORE.subscribe(self)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        STORE.unsubscribe(self)
+        QSIB_STORE.unsubscribe(self)
     }
     
-    func newState(state: AppState) {
+    func newState(state: QsibState) {
         if state.toastQueue.count > 0 && state.toastQueue.first!.id != previousToast {
             let tm = state.toastQueue.first!
             previousToast = tm.id
             DispatchQueue.main.async {
                 self.view.makeToast(tm.message, duration: tm.duration, position: tm.position, title: tm.title, image: tm.image, style: tm.style, completion: tm.completion)
             }
-            ACTION_DISPATCH(action: ProcessToast())
+            QSIB_ACTION_DISPATCH(action: ProcessToast())
         }
         
         ble = state.ble

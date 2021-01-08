@@ -10,12 +10,12 @@ import CoreBluetooth
 import Toast
 
 
-let MWV_PPG_V2 = "Mutliwavelength PPG V2"
-let SHUNT_MONITOR_V1 = "Shunt Monitor V1"
-let SKIN_HYDRATION_SENSOR_V2 = "Skin Hydration V2"
+public let MWV_PPG_V2 = "Mutliwavelength PPG V2"
+public let SHUNT_MONITOR_V1 = "Shunt Monitor V1"
+public let SKIN_HYDRATION_SENSOR_V2 = "Skin Hydration V2"
 
 
-class MwvPpgV2ModeCodableState: Codable {
+public class MwvPpgV2ModeCodableState: Codable {
     var mode: String?
     var atime: Int?
     var astep: Int?
@@ -24,15 +24,15 @@ class MwvPpgV2ModeCodableState: Codable {
     var drive: Int?
 }
 
-class ShuntMonitorV1CodableState: Codable {
+public class ShuntMonitorV1CodableState: Codable {
     var mode: String?
 }
 
-class SkinHydrationV2CodableState: Codable {
+public class SkinHydrationV2CodableState: Codable {
     var mode: String?
 }
 
-class ProjectCodableState: Codable {
+public class ProjectCodableState: Codable {
     var version: Int = 1
     var defaultMode: String?
     
@@ -41,12 +41,12 @@ class ProjectCodableState: Codable {
     var shs_v2_modes: [String: SkinHydrationV2CodableState] = [:]
 }
 
-class PersistedConfig: Codable {
+public class PersistedConfig: Codable {
     var f0: Float?
     var f1: Float?
 }
 
-class QSPeripheralCodableState: Codable {
+public class QSPeripheralCodableState: Codable {
     var projectMode: String?
     var signalHz: Int?
     var signalChannels: Int?
@@ -89,7 +89,7 @@ class QSPeripheralCodableState: Codable {
     }
 }
 
-class QSPeripheral {
+public class QSPeripheral {
     var cbp: CBPeripheral!
     var characteristics: [UUID: CBCharacteristic]!
     var peripheralName: String!
@@ -229,7 +229,7 @@ class QSPeripheral {
         if let characteristic = self.characteristics[UUID(uuidString: cbuuid.uuidString)!] {
             self.cbp.writeValue(data, for: characteristic, type: .withResponse)
         } else {
-            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Cannot update characteristic", duration: TimeInterval(2), position: .center, title: "Internal BLE Error", image: nil, style: ToastStyle(), completion: nil)))
+            QSIB_ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Cannot update characteristic", duration: TimeInterval(2), position: .center, title: "Internal BLE Error", image: nil, style: ToastStyle(), completion: nil)))
         }
     }
     
