@@ -392,6 +392,9 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         LOGGER.warning("Skipped processing \(action)")
     }
     
+    // Allow someone to add logic to run for this aciton after the state has been updated
+    STORE_CALLBACK.fire(&state)
+    
     return state
 }
 
@@ -457,6 +460,17 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         }
     default:
         fatalError("Don't know how to start new dataset for \(String(describing: peripheral.projectMode))")
+    }
+}
+
+// Protocol to allow others register work to perform ops on dispatch
+public protocol SubscriberCallback {
+    func fire(_ state: inout QsibState)
+}
+
+public class NopCallback: SubscriberCallback {
+    public func fire(_ state: inout QsibState) {
+        // nop
     }
 }
 

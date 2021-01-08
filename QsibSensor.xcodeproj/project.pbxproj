@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		060C372F256C49F200DEF35F /* DeviceInfoVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060C372E256C49F200DEF35F /* DeviceInfoVC.swift */; };
 		060DE7A425A8CABD00A09FCA /* QsibVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060DE7A325A8CABD00A09FCA /* QsibVersion.swift */; };
+		060DE7A725A8CE6A00A09FCA /* StoreCallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060DE7A625A8CE6A00A09FCA /* StoreCallback.swift */; };
 		06153A9025682C4000889A21 /* Toast in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A8F25682C4000889A21 /* Toast */; };
 		06153A9425682C6D00889A21 /* ReSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A9325682C6D00889A21 /* ReSwift */; };
 		06153A9825682C9100889A21 /* Charts in Frameworks */ = {isa = PBXBuildFile; productRef = 06153A9725682C9100889A21 /* Charts */; };
@@ -43,6 +44,7 @@
 /* Begin PBXFileReference section */
 		060C372E256C49F200DEF35F /* DeviceInfoVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfoVC.swift; sourceTree = "<group>"; };
 		060DE7A325A8CABD00A09FCA /* QsibVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibVersion.swift; sourceTree = "<group>"; };
+		060DE7A625A8CE6A00A09FCA /* StoreCallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreCallback.swift; sourceTree = "<group>"; };
 		0630F8F8256D9EDE00559577 /* InspectDataVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectDataVC.swift; sourceTree = "<group>"; };
 		068E70672565AC2F00673E32 /* QsibSensor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QsibSensor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		068E706A2565AC2F00673E32 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -127,6 +129,7 @@
 				06F8864925A4C58F001D423B /* StatusControlVC.swift */,
 				06F8864C25A4CEB6001D423B /* ConnectedDeviceVC.swift */,
 				069DCB3F25A8BEEF001B1247 /* EditorVCs.swift */,
+				060DE7A625A8CE6A00A09FCA /* StoreCallback.swift */,
 			);
 			path = QsibSensor;
 			sourceTree = "<group>";
@@ -255,6 +258,7 @@
 				068E706B2565AC2F00673E32 /* AppDelegate.swift in Sources */,
 				068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */,
 				068E706D2565AC2F00673E32 /* SceneDelegate.swift in Sources */,
+				060DE7A725A8CE6A00A09FCA /* StoreCallback.swift in Sources */,
 				06F8864D25A4CEB6001D423B /* ConnectedDeviceVC.swift in Sources */,
 				06DC88EE256C1B70006A2B97 /* QSPeripheral.swift in Sources */,
 				06A8B533256833BD00880CE8 /* QsibStore.swift in Sources */,
