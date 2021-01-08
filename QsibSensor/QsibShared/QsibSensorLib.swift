@@ -15,14 +15,14 @@ enum MeasurementState {
     case ended
 }
 
-struct RsParams {
+public struct RsParams {
     let id: UInt32
     let channels: UInt8
     let hz: Float32
     let scaler: Float32
 }
 
-protocol DataSetProtocol {
+public protocol DataSetProtocol {
     func getStart() -> Date?
     func getParams() -> RsParams
     func getGraphableTimestamps() -> [Double]
@@ -32,7 +32,7 @@ protocol DataSetProtocol {
     func asURL() -> URL
 }
 
-class RamDataSet: DataSetProtocol {
+public class RamDataSet: DataSetProtocol {
     let params: RsParams
     
     var start: Date?
@@ -82,15 +82,15 @@ class RamDataSet: DataSetProtocol {
         }
     }
     
-    func getStart() -> Date? {
+    public func getStart() -> Date? {
         return start
     }
     
-    func getParams() -> RsParams {
+    public func getParams() -> RsParams {
         return params
     }
         
-    func asURL() -> URL {
+    public func asURL() -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("data_\(params.id).csv")
         LOGGER.debug("Writing RamDataSet \(self.params.id) to \(url.absoluteString)")
         
@@ -119,19 +119,19 @@ class RamDataSet: DataSetProtocol {
         return url
     }
     
-    func getGraphableTimestamps() -> [Double] {
+    public func getGraphableTimestamps() -> [Double] {
         return getTimestamps(targetCardinality: 100)
     }
     
-    func getGraphableChannels() -> [[Double]] {
+    public func getGraphableChannels() -> [[Double]] {
         return getChannels(targetCardinality: 100)
     }
     
-    func getAllTimestamps() -> [Double] {
+    public func getAllTimestamps() -> [Double] {
         return getTimestamps(targetCardinality: nil)
     }
     
-    func getAllChannels() -> [[Double]] {
+    public func getAllChannels() -> [[Double]] {
         return getChannels(targetCardinality: nil)
     }
     
@@ -350,7 +350,7 @@ class RamDataSet: DataSetProtocol {
     }
 }
 
-class FileDataSet: DataSetProtocol {
+public class FileDataSet: DataSetProtocol {
     let start: Date?
     let params: RsParams
     let file: URL
@@ -369,37 +369,37 @@ class FileDataSet: DataSetProtocol {
         graphableChannels = ramDataSet.getGraphableChannels()
     }
     
-    func getStart() -> Date? {
+    public func getStart() -> Date? {
         return start
     }
     
-    func getParams() -> RsParams {
+    public func getParams() -> RsParams {
         return params
     }
     
-    func getGraphableTimestamps() -> [Double] {
+    public func getGraphableTimestamps() -> [Double] {
         return graphableTimestamps
     }
     
-    func getGraphableChannels() -> [[Double]] {
+    public func getGraphableChannels() -> [[Double]] {
         return graphableChannels
     }
     
     /*!
      * A FileDataSet will not go to disk to find the rest of the stamps.
      */
-    func getAllTimestamps() -> [Double] {
+    public func getAllTimestamps() -> [Double] {
         return graphableTimestamps
     }
     
     /*!
      * A FileDataSet will not go to disk to find the rest of the channel data.
      */
-    func getAllChannels() -> [[Double]] {
+    public func getAllChannels() -> [[Double]] {
         return graphableChannels
     }
     
-    func asURL() -> URL {
+    public func asURL() -> URL {
         return file
     }
 }
@@ -513,7 +513,7 @@ class QsMeasurement {
 }
 
 
-class QsibSensorLib {
+public class QsibSensorLib {
     let initializer: Void = {
         qs_init();
         return ()
