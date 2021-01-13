@@ -24,6 +24,7 @@
 		068E70862565AE2300673E32 /* libqsib_sensor_rs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 068E70852565AE1200673E32 /* libqsib_sensor_rs.a */; };
 		068E70882565AE4200673E32 /* QsibSensorLib.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E70872565AE4200673E32 /* QsibSensorLib.swift */; };
 		068E708C2565BD2E00673E32 /* DevicesTableVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E708B2565BD2E00673E32 /* DevicesTableVC.swift */; };
+		0695D0A425AFB3E700E12617 /* UIStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0695D0A325AFB3E700E12617 /* UIStore.swift */; };
 		069DCB4025A8BEEF001B1247 /* EditorVCs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 069DCB3F25A8BEEF001B1247 /* EditorVCs.swift */; };
 		06A86AAB256830BC00B30115 /* AppBluetoothDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */; };
 		06A86AAF2568312100B30115 /* NIOTLS in Frameworks */ = {isa = PBXBuildFile; productRef = 06A86AAE2568312100B30115 /* NIOTLS */; };
@@ -59,6 +60,7 @@
 		068E70852565AE1200673E32 /* libqsib_sensor_rs.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libqsib_sensor_rs.a; path = "../../qsib-sensor-lib-rs/target/universal/release/libqsib_sensor_rs.a"; sourceTree = "<group>"; };
 		068E70872565AE4200673E32 /* QsibSensorLib.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibSensorLib.swift; sourceTree = "<group>"; };
 		068E708B2565BD2E00673E32 /* DevicesTableVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicesTableVC.swift; sourceTree = "<group>"; };
+		0695D0A325AFB3E700E12617 /* UIStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIStore.swift; sourceTree = "<group>"; };
 		069DCB3F25A8BEEF001B1247 /* EditorVCs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorVCs.swift; sourceTree = "<group>"; };
 		069DCB4325A8BF31001B1247 /* qsib_sensor_lib_rs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = qsib_sensor_lib_rs.h; sourceTree = "<group>"; };
 		06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBluetoothDelegate.swift; sourceTree = "<group>"; };
@@ -130,6 +132,7 @@
 				06F8864C25A4CEB6001D423B /* ConnectedDeviceVC.swift */,
 				069DCB3F25A8BEEF001B1247 /* EditorVCs.swift */,
 				060DE7A625A8CE6A00A09FCA /* StoreCallback.swift */,
+				0695D0A325AFB3E700E12617 /* UIStore.swift */,
 			);
 			path = QsibSensor;
 			sourceTree = "<group>";
@@ -253,6 +256,7 @@
 				068E706F2565AC2F00673E32 /* MainViewController.swift in Sources */,
 				060DE7A425A8CABD00A09FCA /* QsibVersion.swift in Sources */,
 				06F8864A25A4C58F001D423B /* StatusControlVC.swift in Sources */,
+				0695D0A425AFB3E700E12617 /* UIStore.swift in Sources */,
 				068E708C2565BD2E00673E32 /* DevicesTableVC.swift in Sources */,
 				069DCB4025A8BEEF001B1247 /* EditorVCs.swift in Sources */,
 				068E706B2565AC2F00673E32 /* AppDelegate.swift in Sources */,
