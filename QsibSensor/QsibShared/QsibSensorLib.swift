@@ -275,6 +275,7 @@ public class RamDataSet: DataSetProtocol {
 
         _timestampsData = UnsafeMutablePointer<Double>.allocate(capacity: Int(_timestampBufSize))
         _numTimestampsData = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
+        _numTimestampsData![0] = _timestampBufSize
 
         return (_timestampsData!, _numTimestampsData!)
 
@@ -341,6 +342,12 @@ public class RamDataSet: DataSetProtocol {
         let success = qs_interpret_timestamps(self.params.id, self.params.hz, self.params.scaler, 0xDEADBEEF, downsampleThreshold, downsampleScale, timestamps, numTimestamps)
         if success {
             LOGGER.trace("Interpretted \(numTimestamps[0]) timestamps for RamDataSet \(self.params.id)")
+            
+            if numTimestamps[0] == 0  {
+                let error = QS_LIB.getError()
+                LOGGER.warning("Interpretted 0 values from QS_LIB with error message: \(String(describing: error))")
+            }
+            
             return [Double](UnsafeBufferPointer(start: timestamps, count: Int(numTimestamps[0])))
         } else {
             LOGGER.error("Failed to interpret timestamps for RamDataSet \(self.params.id)")
@@ -404,22 +411,28 @@ public class FileDataSet: DataSetProtocol {
     }
 }
 
-class QsMeasurement {
-
+class QSMeasurement {
+    let uuid = UUID()
     var state: MeasurementState
     var dataSets: [DataSetProtocol]
     let channels: UInt8
+    let holdInRam: Bool
     
     var graphables: (Date, [Double], [[Double]])
     
-    public init(signalChannels: UInt8) {
-        LOGGER.trace("Allocating QsMeasurment with \(signalChannels)")
+    public init(signalChannels: UInt8, holdInRam: Bool) {
+        LOGGER.trace("Allocating QsMeasurement with \(signalChannels)")
         
         self.dataSets = []
         
         self.state = .initial
         self.channels = signalChannels
+        self.holdInRam = holdInRam
         self.graphables = (Date(), [], [])
+    }
+    
+    public func id() -> UUID {
+        return uuid
     }
     
     public func addPayload(data: Data) -> UInt32? {
@@ -446,7 +459,12 @@ class QsMeasurement {
 
         // Convert the current active data set to a persisted data set
         if let activeSet = dataSets.last as? RamDataSet {
-            dataSets[dataSets.count - 1] = FileDataSet(ramDataSet: activeSet)
+            if !holdInRam {
+                LOGGER.trace("Flushing \(dataSets.count)(th) RamDataSet to FileDataSet")
+                dataSets[dataSets.count - 1] = FileDataSet(ramDataSet: activeSet)
+            } else {
+                LOGGER.trace("Electing to NOT flush \(dataSets.count)(th) RamDataSet")
+            }
         }
 
         // Set the new active data set as active
@@ -454,7 +472,7 @@ class QsMeasurement {
     }
          
     public func archive() throws -> URL? {
-        LOGGER.debug("Archiving QsMeasurement of \(dataSets.count) data sets ...")
+        LOGGER.debug("Archiving QSMeasurement of \(dataSets.count) data sets ...")
 
         // Create an csv zip for the data
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("archive.zip")
@@ -470,6 +488,10 @@ class QsMeasurement {
         }
                     
         return url
+    }
+    
+    func getAll() -> ([Double], [[Double]]) {
+        return (getAllTimestamps(), getAllChannels())
     }
     
     func getGraphables() -> ([Double], [[Double]]) {
@@ -502,6 +524,35 @@ class QsMeasurement {
     private func getGraphableChannels() -> [[Double]] {
         return dataSets
             .map { $0.getGraphableChannels() }
+            .reduce(Array(repeating: [], count: Int(channels)), { (acc, curr) in
+                var result: [[Double]] = []
+                for (acc_i, curr_i) in zip(acc, curr) {
+                    result.append(acc_i + curr_i)
+                }
+                return result
+            })
+    }
+    
+    private func getAllTimestamps() -> [Double] {
+        let asdf: [[Double]] = dataSets.map { dataSet in
+            if let ramDataSet = dataSet as? RamDataSet {
+                let unshifted = ramDataSet.getAllTimestamps()
+                let shifted: [Double] = unshifted.map { $0 + ramDataSet.timestampOffset }
+                return shifted
+            } else {
+                // timestamp offset calculation already cached
+                LOGGER.warning("\(SKIN_HYDRATION_SENSOR_V2) should not encounter calls to get all timestamps from a non-RamDataSet")
+                let shifted: [Double] = dataSet.getAllTimestamps()
+                return shifted
+            }
+        }
+        let swiftisdoingdumbshitagain: [Double] = asdf.flatMap { $0 }
+        return swiftisdoingdumbshitagain
+    }
+    
+    private func getAllChannels() -> [[Double]] {
+        return dataSets
+            .map { $0.getAllChannels() }
             .reduce(Array(repeating: [], count: Int(channels)), { (acc, curr) in
                 var result: [[Double]] = []
                 for (acc_i, curr_i) in zip(acc, curr) {

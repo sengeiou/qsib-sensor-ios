@@ -89,7 +89,8 @@ public class QSPeripheralCodableState: Codable {
     }
 }
 
-public class QSPeripheral {
+public class QSPeripheral: Hashable {
+    
     var cbp: CBPeripheral!
     var characteristics: [UUID: CBCharacteristic]!
     var peripheralName: String!
@@ -111,8 +112,8 @@ public class QSPeripheral {
     
     var persistedConfig: PersistedConfig?
     
-    var activeMeasurement: QsMeasurement?
-    var finalizedMeasurements: [QsMeasurement] = []
+    var activeMeasurement: QSMeasurement?
+    var finalizedMeasurements: [QSMeasurement] = []
 
     var projects: [String: ProjectCodableState] = [:]
     
@@ -163,6 +164,14 @@ public class QSPeripheral {
         }
     }
     
+    public static func == (lhs: QSPeripheral, rhs: QSPeripheral) -> Bool {
+        return lhs.id() == rhs.id()
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id())
+    }
+
     public func id() -> UUID {
         return cbp.identifier
     }

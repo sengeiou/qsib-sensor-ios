@@ -7,27 +7,13 @@
 
 import CoreBluetooth
 import Foundation
-import UIKit
 import ReSwift
-import Toast
 
 
 public struct QsibState: StateType {
     var ble: AppBluetoothDelegate? = nil
     var peripherals: [UUID: QSPeripheral] = [:]
-    var toastQueue: [ToastMessage] = []
     var activePeripheral: UUID?
-}
-
-public struct ToastMessage {
-    let id = UUID()
-    var message: String? = nil
-    var duration: TimeInterval = TimeInterval(3)
-    var position: ToastPosition = .top
-    var title: String? = nil
-    var image: UIImage? = nil
-    var style: ToastStyle = .init()
-    var completion: ((Bool) -> Void)? = nil
 }
 
 public struct InitBle: Action {
@@ -174,17 +160,15 @@ public struct TurnOffSensor: Action {
     let peripheral: CBPeripheral
 }
 
-public struct AppendToast: Action {
-    let message: ToastMessage
-}
-
-public struct ProcessToast: Action {}
-
 public struct QsibTick: Action {}
 
 public struct IssueControlWriteFor: Action {
     let peripheral: CBPeripheral
     let projectMode: String
+}
+
+public struct SetScan: Action {
+    let doScan: Bool
 }
 
 func qsibReducer(action: Action, state: QsibState?) -> QsibState {
@@ -203,8 +187,10 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         peripheral.add(characteristic: action.characteristic)
         save(&state, peripheral)
     case let action as RequestConnect:
-        state.ble?.centralManager.connect(action.peripheral, options: nil)
-        state.activePeripheral = action.peripheral.identifier
+        if action.peripheral.state != .connected && action.peripheral.state != .connecting {
+            state.ble?.centralManager.connect(action.peripheral, options: nil)
+            state.activePeripheral = action.peripheral.identifier
+        }
     case let action as DidConnect:
         let _ = getPeripheral(&state, action.peripheral)
     case let action as RequestDisconnect:
@@ -308,12 +294,8 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
                 peripheral.signalChannels = 5
             }
         case SKIN_HYDRATION_SENSOR_V2:
-            if peripheral.signalHz == nil {
-                peripheral.signalHz = 256
-            }
-            if peripheral.signalChannels == nil {
-                peripheral.signalChannels = 3
-            }
+            peripheral.signalHz = 256
+            peripheral.signalChannels = 4
         default:
             fatalError("Not setting or checking project defaults for \(String(describing: peripheral.projectMode))")
         }
@@ -329,7 +311,16 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
     case let action as StartMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         if let numChannels = peripheral.signalChannels {
-            peripheral.activeMeasurement = QsMeasurement(signalChannels: UInt8(numChannels))
+            var holdInRam: Bool = false
+            switch peripheral.projectMode ?? "" {
+            case SHUNT_MONITOR_V1, MWV_PPG_V2:
+                holdInRam = false
+            case SKIN_HYDRATION_SENSOR_V2:
+                holdInRam = true
+            default:
+                LOGGER.warning("\(String(describing: peripheral.projectMode)) doesn't specify how to transition between data sets.")
+            }
+            peripheral.activeMeasurement = QSMeasurement(signalChannels: UInt8(numChannels), holdInRam: holdInRam)
             peripheral.activeMeasurement?.state = .running
             LOGGER.debug("Starting measurement ...")
             startNewDataSet(for: peripheral)
@@ -382,10 +373,8 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         default:
             LOGGER.error("Don't know how to handle control writes for projectMode \(action.projectMode)")
         }
-    case let action as AppendToast:
-        state.toastQueue.append(action.message)
-    case _ as ProcessToast:
-        state.toastQueue.removeFirst()
+    case let action as SetScan:
+        state.ble!.setScan(doScan: action.doScan)
     case _ as QsibTick:
         break
     default:
@@ -393,7 +382,7 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
     }
     
     // Allow someone to add logic to run for this aciton after the state has been updated
-    STORE_CALLBACK.fire(&state)
+    STORE_CALLBACK.fire(&state, action)
     
     return state
 }
@@ -429,11 +418,12 @@ func getPeripheral(_ state: inout QsibState, _ peripheral: CBPeripheral) -> QSPe
 func getPeripheral(_ state: inout QsibState, _ peripheral: CBPeripheral, rssi: NSNumber) -> QSPeripheral {
     if let qsp = state.peripherals[peripheral.identifier] {
         qsp.set(peripheral: peripheral, rssi: rssi)
-//        state.peripherals[peripheral.identifier] = qsp
+        qsp.ts = Date()
         return qsp
     } else {
         let qsp = QSPeripheral(peripheral: peripheral, rssi: rssi)
         state.peripherals[qsp.id()] = qsp
+        qsp.ts = Date()
         return qsp
     }
 }
@@ -465,11 +455,11 @@ func startNewDataSet(for peripheral: QSPeripheral) {
 
 // Protocol to allow others register work to perform ops on dispatch
 public protocol SubscriberCallback {
-    func fire(_ state: inout QsibState)
+    func fire(_ state: inout QsibState, _ action: Action)
 }
 
 public class NopCallback: SubscriberCallback {
-    public func fire(_ state: inout QsibState) {
+    public func fire(_ state: inout QsibState, _ action: Action) {
         // nop
     }
 }
