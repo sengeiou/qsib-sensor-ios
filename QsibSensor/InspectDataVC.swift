@@ -88,15 +88,15 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        STORE.subscribe(self)
+        QSIB_STORE.subscribe(self)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        STORE.unsubscribe(self)
+        QSIB_STORE.unsubscribe(self)
     }
     
-    func newState(state: AppState) {
+    func newState(state: QsibState) {
         var updateInfo = false
         if let identifier = state.activePeripheral {
             if let peripheral = state.peripherals[identifier] {
@@ -201,36 +201,30 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             switch indexPath.row {
             case 0:
                 LOGGER.debug("Selected turn off device ...")
-                ACTION_DISPATCH(action: TurnOffSensor(peripheral: peripheral.cbp))
+                QSIB_ACTION_DISPATCH(action: TurnOffSensor(peripheral: peripheral.cbp))
                 self.dismiss(animated: true)
             case 2:
                 LOGGER.debug("Selected start measurement ...")
                 if let measurementState = self.peripheral?.activeMeasurement?.state {
                     switch measurementState {
                     case .initial:
-                        ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
+                        QSIB_ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
                     case .paused:
-                        ACTION_DISPATCH(action: ResumeMeasurement(peripheral: peripheral.cbp))
+                        QSIB_ACTION_DISPATCH(action: ResumeMeasurement(peripheral: peripheral.cbp))
                     case .running:
-                        ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
+                        QSIB_ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
                     case .ended:
                         LOGGER.debug("Ignoring selection with ended active measurement on \(indexPath)")
                     }
                 } else {
-                    ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
+                    QSIB_ACTION_DISPATCH(action: StartMeasurement(peripheral: peripheral.cbp))
                 }
             case 3:
                 LOGGER.debug("Selected stop measurement ...")
                 if let measurementState = self.peripheral?.activeMeasurement?.state {
                     switch measurementState {
-                    case .initial:
-                        ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
-                    case .paused:
-                        ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
-                    case .running:
-                        ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
-                    case .ended:
-                        LOGGER.debug("Ignoring selection with ended active measurement on \(indexPath)")
+                    case .initial, .paused, .running, .ended:
+                        QSIB_ACTION_DISPATCH(action: StopMeasurement(peripheral: peripheral.cbp))
                     }
                 } else {
                     LOGGER.debug("Ignoring selection without active measurement on \(indexPath)")
@@ -241,7 +235,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     LOGGER.debug("Pausing for export from \(measurement.state)")
                     
                     // Pause
-                    ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
+                    QSIB_ACTION_DISPATCH(action: PauseMeasurement(peripheral: peripheral.cbp))
                     
                     // Let the user know that we are working on it
                     DispatchQueue.main.async { self.view.makeToastActivity(.center) }
@@ -349,12 +343,13 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             }
             return cell
         default:
-            if isProjectConfigged() && indexPath.section == 1 {
+            let isConfigged = isProjectConfigged()
+            if isConfigged && indexPath.section == 1 {
                 let cell = tableView.dequeueReusableCell(withIdentifier: "controlcell0", for: indexPath) as! ControlCell
                 switch self.peripheral?.projectMode ?? "" {
                 case MWV_PPG_V2:
                     let project = peripheral.getOrDefaultProject()
-                    let opMode = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""] ?? MwvPpgV2ModeCodableState()
+                    let opMode = project.mwv_ppg_v2_modes[project.defaultMode ?? ""] ?? MwvPpgV2ModeCodableState()
                     switch indexPath.row {
                     case 0: // Mode
                         cell.textLabel?.text = "Mode"
@@ -397,16 +392,23 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     return cell
                 }
                 
-                if indexPath.section - 2 > activeMeasurement.channels {
+                let channelSection = indexPath.section - 1 - (isConfigged ? 1 : 0)
+                
+                if channelSection > activeMeasurement.channels {
                     LOGGER.error("Cannot populate data for channel that the active measurement is not configured to have")
                     fatalError("Cannot populate data for channel that the active measurement is not configured to have")
                 }
                 
                 let (graphableTimestamps, graphableChannels) = activeMeasurement.getGraphables()
+                if graphableTimestamps.count == 0 || graphableChannels.count == 0 {
+                    // This can happen when new payloads make it so that the buffer for data to export for graphing are too small
+                    LOGGER.warning("No data to graph for \(channelSection)")
+                    return cell
+                }
 
                 cell.timestamps = graphableTimestamps
-                cell.channel = graphableChannels[indexPath.section - 2]
-                LOGGER.trace("Updating channel \(indexPath.section - 2) with [\(cell.timestamps.count), \(cell.channel.count)] values")
+                cell.channel = graphableChannels[channelSection]
+                LOGGER.trace("Updating channel \(channelSection) with [\(cell.timestamps.count), \(cell.channel.count)] values")
                 cell.dataLabel = "SAADC Samples (mV)"
                 cell.colorIndex = indexPath.section
                 cell.chartView.delegate = cell
@@ -436,7 +438,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 LOGGER.debug("Selected mode \(selection)")
                 project.defaultMode = selection
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 1:
@@ -444,14 +446,14 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             let editorVC = storyboard.instantiateViewController(identifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
             editorVC.headerLabelText = "Step time (ATIME)"
             editorVC.options = (0...UINT8_MAX).map { "\($0)" }
-            editorVC.confirmedValue = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.atime ?? 0
+            editorVC.confirmedValue = project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.atime ?? 0
             editorVC.proposedValue = editorVC.confirmedValue
             editorVC.predicate = { (i) in return true }
             editorVC.actionFactory = { selectedIndex in
                 LOGGER.debug("Selected atime \(selectedIndex)")
-                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.atime = selectedIndex
+                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.atime = selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 2:
@@ -459,14 +461,14 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             let editorVC = storyboard.instantiateViewController(identifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
             editorVC.headerLabelText = "Integration steps (ASTEP)"
             editorVC.options = (0...UINT16_MAX).map { "\($0)" }
-            editorVC.confirmedValue = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.astep ?? 0
+            editorVC.confirmedValue = project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.astep ?? 0
             editorVC.proposedValue = editorVC.confirmedValue
             editorVC.predicate = { (i) in return true }
             editorVC.actionFactory = { selectedIndex in
                 LOGGER.debug("Selected atime \(selectedIndex)")
-                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.astep = selectedIndex
+                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.astep = selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 3:
@@ -477,14 +479,14 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 let gainStr: String = String.init(format: "%.1f", pow(Float(2), Float(i - 1)))
                 return "\(gainStr)x"
             }
-            editorVC.confirmedValue = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.again ?? 0
+            editorVC.confirmedValue = project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.again ?? 0
             editorVC.proposedValue = editorVC.confirmedValue
             editorVC.predicate = { (i) in return true }
             editorVC.actionFactory = { selectedIndex in
                 LOGGER.debug("Selected again \(editorVC.options[selectedIndex])")
-                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.again = selectedIndex
+                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.again = selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 4:
@@ -494,7 +496,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.detailLabelText = "(WTIME = 2.78ms * WCYCLES) >= (ASTEP + 1) * (ATIME + 1) * 2.78us"
             var firstOption = 255
             editorVC.options = (0...255).filter { (i) in
-                guard let mode = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""] else {
+                guard let mode = project.mwv_ppg_v2_modes[project.defaultMode ?? ""] else {
                     return false
                 }
                 let wtime = 2.78 * Float(i + 1) * 1000
@@ -511,7 +513,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 let waitStr: String = String.init(format: "%.1f", 2.78 * Float(i + 1))
                 return "\(waitStr) ms"
             }
-            if let wcycles = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.wcycles {
+            if let wcycles = project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.wcycles {
                 editorVC.confirmedValue = wcycles - firstOption + 1
             } else {
                 editorVC.confirmedValue =  0
@@ -520,9 +522,9 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.predicate = { (i) in return true }
             editorVC.actionFactory = { selectedIndex in
                 LOGGER.debug("Selected wtime \(editorVC.options[selectedIndex])")
-                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.wcycles = firstOption + selectedIndex
+                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.wcycles = firstOption + selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 5:
@@ -532,14 +534,14 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.options = (0...255).map { i in
                 return "\(4 + (i * 2)) mA"
             }
-            editorVC.confirmedValue = project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.drive ?? 0
+            editorVC.confirmedValue = project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.drive ?? 0
             editorVC.proposedValue = editorVC.confirmedValue
             editorVC.predicate = { (i) in return true }
             editorVC.actionFactory = { selectedIndex in
                 LOGGER.debug("Selected led drive \(editorVC.options[selectedIndex])")
-                project.mwv_ppg_v2_modes?[project.defaultMode ?? ""]?.drive = selectedIndex
+                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.drive = selectedIndex
                 peripheral.save()
-                return Tick()
+                return QsibTick()
             }
             self.present(editorVC, animated: true)
         case 6:
@@ -548,7 +550,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 return
             }
             LOGGER.debug("Selected apply project mode on \(mode)")
-            ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: mode))
+            QSIB_ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: mode))
 
         default:
             LOGGER.error("Unhandled row selection for \(MWV_PPG_V2) on \(indexPath)")

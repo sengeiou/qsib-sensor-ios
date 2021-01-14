@@ -23,16 +23,16 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
-        STORE.subscribe(self)
+        QSIB_STORE.subscribe(self)
     }
         
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         
-        STORE.unsubscribe(self)
+        QSIB_STORE.unsubscribe(self)
     }
     
-    func newState(state: AppState) {
+    func newState(state: QsibState) {
         if self.peripheral == nil {
             if let identifier = state.activePeripheral {
                 self.peripheral = state.peripherals[identifier]
@@ -86,10 +86,10 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
                 return
             case 1:
                 updateTs = nil
-                ACTION_DISPATCH(action: RequestConnect(peripheral: peripheral.cbp))
+                QSIB_ACTION_DISPATCH(action: RequestConnect(peripheral: peripheral.cbp))
             case 2:
                 updateTs = nil
-                ACTION_DISPATCH(action: RequestDisconnect(peripheral: peripheral.cbp))
+                QSIB_ACTION_DISPATCH(action: RequestDisconnect(peripheral: peripheral.cbp))
             default:
                 fatalError("Programming error for \(indexPath)")
             }

@@ -15,14 +15,14 @@ enum MeasurementState {
     case ended
 }
 
-struct RsParams {
+public struct RsParams {
     let id: UInt32
     let channels: UInt8
     let hz: Float32
     let scaler: Float32
 }
 
-protocol DataSetProtocol {
+public protocol DataSetProtocol {
     func getStart() -> Date?
     func getParams() -> RsParams
     func getGraphableTimestamps() -> [Double]
@@ -32,12 +32,13 @@ protocol DataSetProtocol {
     func asURL() -> URL
 }
 
-class RamDataSet: DataSetProtocol {
+public class RamDataSet: DataSetProtocol {
     let params: RsParams
     
     var start: Date?
     var payloadCount: UInt64
     var sampleCount: UInt64
+    var _payloadLock = pthread_mutex_t()
     var _channelBufSize: UInt32
     var _channelLock = pthread_mutex_t()
     var _channelData: UnsafeMutablePointer<UnsafeMutablePointer<Double>?>?
@@ -60,6 +61,7 @@ class RamDataSet: DataSetProtocol {
         _channelBufSize = 0
         _timestampBufSize = 0
         
+        pthread_mutex_init(&_payloadLock, nil)
         pthread_mutex_init(&_channelLock, nil)
         pthread_mutex_init(&_timestampLock, nil)
         
@@ -80,15 +82,15 @@ class RamDataSet: DataSetProtocol {
         }
     }
     
-    func getStart() -> Date? {
+    public func getStart() -> Date? {
         return start
     }
     
-    func getParams() -> RsParams {
+    public func getParams() -> RsParams {
         return params
     }
         
-    func asURL() -> URL {
+    public func asURL() -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("data_\(params.id).csv")
         LOGGER.debug("Writing RamDataSet \(self.params.id) to \(url.absoluteString)")
         
@@ -117,19 +119,19 @@ class RamDataSet: DataSetProtocol {
         return url
     }
     
-    func getGraphableTimestamps() -> [Double] {
+    public func getGraphableTimestamps() -> [Double] {
         return getTimestamps(targetCardinality: 100)
     }
     
-    func getGraphableChannels() -> [[Double]] {
+    public func getGraphableChannels() -> [[Double]] {
         return getChannels(targetCardinality: 100)
     }
     
-    func getAllTimestamps() -> [Double] {
+    public func getAllTimestamps() -> [Double] {
         return getTimestamps(targetCardinality: nil)
     }
     
-    func getAllChannels() -> [[Double]] {
+    public func getAllChannels() -> [[Double]] {
         return getChannels(targetCardinality: nil)
     }
     
@@ -154,6 +156,11 @@ class RamDataSet: DataSetProtocol {
         }
         
         let len = min(UInt16(data.count), UInt16(data[0]) + (UInt16(data[1]) << 8))
+        
+        pthread_mutex_lock(&_payloadLock)
+        defer {
+            pthread_mutex_unlock(&_payloadLock)
+        }
         
         var samples: UInt32? = nil
         data.withUnsafeBytes({ (buf_ptr: UnsafeRawBufferPointer) in
@@ -268,6 +275,7 @@ class RamDataSet: DataSetProtocol {
 
         _timestampsData = UnsafeMutablePointer<Double>.allocate(capacity: Int(_timestampBufSize))
         _numTimestampsData = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
+        _numTimestampsData![0] = _timestampBufSize
 
         return (_timestampsData!, _numTimestampsData!)
 
@@ -334,6 +342,12 @@ class RamDataSet: DataSetProtocol {
         let success = qs_interpret_timestamps(self.params.id, self.params.hz, self.params.scaler, 0xDEADBEEF, downsampleThreshold, downsampleScale, timestamps, numTimestamps)
         if success {
             LOGGER.trace("Interpretted \(numTimestamps[0]) timestamps for RamDataSet \(self.params.id)")
+            
+            if numTimestamps[0] == 0  {
+                let error = QS_LIB.getError()
+                LOGGER.warning("Interpretted 0 values from QS_LIB with error message: \(String(describing: error))")
+            }
+            
             return [Double](UnsafeBufferPointer(start: timestamps, count: Int(numTimestamps[0])))
         } else {
             LOGGER.error("Failed to interpret timestamps for RamDataSet \(self.params.id)")
@@ -343,7 +357,7 @@ class RamDataSet: DataSetProtocol {
     }
 }
 
-class FileDataSet: DataSetProtocol {
+public class FileDataSet: DataSetProtocol {
     let start: Date?
     let params: RsParams
     let file: URL
@@ -362,57 +376,63 @@ class FileDataSet: DataSetProtocol {
         graphableChannels = ramDataSet.getGraphableChannels()
     }
     
-    func getStart() -> Date? {
+    public func getStart() -> Date? {
         return start
     }
     
-    func getParams() -> RsParams {
+    public func getParams() -> RsParams {
         return params
     }
     
-    func getGraphableTimestamps() -> [Double] {
+    public func getGraphableTimestamps() -> [Double] {
         return graphableTimestamps
     }
     
-    func getGraphableChannels() -> [[Double]] {
+    public func getGraphableChannels() -> [[Double]] {
         return graphableChannels
     }
     
     /*!
      * A FileDataSet will not go to disk to find the rest of the stamps.
      */
-    func getAllTimestamps() -> [Double] {
+    public func getAllTimestamps() -> [Double] {
         return graphableTimestamps
     }
     
     /*!
      * A FileDataSet will not go to disk to find the rest of the channel data.
      */
-    func getAllChannels() -> [[Double]] {
+    public func getAllChannels() -> [[Double]] {
         return graphableChannels
     }
     
-    func asURL() -> URL {
+    public func asURL() -> URL {
         return file
     }
 }
 
-class QsMeasurement {
-
+class QSMeasurement {
+    let uuid = UUID()
     var state: MeasurementState
     var dataSets: [DataSetProtocol]
     let channels: UInt8
+    let holdInRam: Bool
     
     var graphables: (Date, [Double], [[Double]])
     
-    public init(signalChannels: UInt8) {
-        LOGGER.trace("Allocating QsMeasurment with \(signalChannels)")
+    public init(signalChannels: UInt8, holdInRam: Bool) {
+        LOGGER.trace("Allocating QsMeasurement with \(signalChannels)")
         
         self.dataSets = []
         
         self.state = .initial
         self.channels = signalChannels
+        self.holdInRam = holdInRam
         self.graphables = (Date(), [], [])
+    }
+    
+    public func id() -> UUID {
+        return uuid
     }
     
     public func addPayload(data: Data) -> UInt32? {
@@ -439,7 +459,12 @@ class QsMeasurement {
 
         // Convert the current active data set to a persisted data set
         if let activeSet = dataSets.last as? RamDataSet {
-            dataSets[dataSets.count - 1] = FileDataSet(ramDataSet: activeSet)
+            if !holdInRam {
+                LOGGER.trace("Flushing \(dataSets.count)(th) RamDataSet to FileDataSet")
+                dataSets[dataSets.count - 1] = FileDataSet(ramDataSet: activeSet)
+            } else {
+                LOGGER.trace("Electing to NOT flush \(dataSets.count)(th) RamDataSet")
+            }
         }
 
         // Set the new active data set as active
@@ -447,7 +472,7 @@ class QsMeasurement {
     }
          
     public func archive() throws -> URL? {
-        LOGGER.debug("Archiving QsMeasurement of \(dataSets.count) data sets ...")
+        LOGGER.debug("Archiving QSMeasurement of \(dataSets.count) data sets ...")
 
         // Create an csv zip for the data
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("archive.zip")
@@ -463,6 +488,10 @@ class QsMeasurement {
         }
                     
         return url
+    }
+    
+    func getAll() -> ([Double], [[Double]]) {
+        return (getAllTimestamps(), getAllChannels())
     }
     
     func getGraphables() -> ([Double], [[Double]]) {
@@ -503,10 +532,39 @@ class QsMeasurement {
                 return result
             })
     }
+    
+    private func getAllTimestamps() -> [Double] {
+        let asdf: [[Double]] = dataSets.map { dataSet in
+            if let ramDataSet = dataSet as? RamDataSet {
+                let unshifted = ramDataSet.getAllTimestamps()
+                let shifted: [Double] = unshifted.map { $0 + ramDataSet.timestampOffset }
+                return shifted
+            } else {
+                // timestamp offset calculation already cached
+                LOGGER.warning("\(SKIN_HYDRATION_SENSOR_V2) should not encounter calls to get all timestamps from a non-RamDataSet")
+                let shifted: [Double] = dataSet.getAllTimestamps()
+                return shifted
+            }
+        }
+        let swiftisdoingdumbshitagain: [Double] = asdf.flatMap { $0 }
+        return swiftisdoingdumbshitagain
+    }
+    
+    private func getAllChannels() -> [[Double]] {
+        return dataSets
+            .map { $0.getAllChannels() }
+            .reduce(Array(repeating: [], count: Int(channels)), { (acc, curr) in
+                var result: [[Double]] = []
+                for (acc_i, curr_i) in zip(acc, curr) {
+                    result.append(acc_i + curr_i)
+                }
+                return result
+            })
+    }
 }
 
 
-class QsibSensorLib {
+public class QsibSensorLib {
     let initializer: Void = {
         qs_init();
         return ()

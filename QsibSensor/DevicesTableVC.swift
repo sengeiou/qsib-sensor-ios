@@ -11,7 +11,6 @@ import CoreBluetooth
 import Toast
 import ReSwift
 
-
 class AdvertisementTableViewCell: UITableViewCell {
     @IBOutlet weak var signalImage: UIImageView!
     @IBOutlet weak var rssiLabel: UILabel!
@@ -31,13 +30,13 @@ class AdvertisementTableViewCell: UITableViewCell {
         
         switch self.peripheral?.cbp.state {
         case .connected, .connecting:
-            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Disconnecting from \(peripheral.name()) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
+            QSIB_ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Disconnecting from \(peripheral.name()) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
             
-            ACTION_DISPATCH(action: RequestDisconnect(peripheral: self.peripheral!.cbp))
+            QSIB_ACTION_DISPATCH(action: RequestDisconnect(peripheral: self.peripheral!.cbp))
         default:
-            ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Connecting to \(peripheral.name()) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
+            QSIB_ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Connecting to \(peripheral.name()) ...", duration: TimeInterval(2), position: .center, title: nil, image: nil, style: ToastStyle(), completion: nil)))
             
-            ACTION_DISPATCH(action: RequestConnect(peripheral: self.peripheral!.cbp))
+            QSIB_ACTION_DISPATCH(action: RequestConnect(peripheral: self.peripheral!.cbp))
             
             viewController.performSegue(withIdentifier: "activeDeviceSegue", sender: viewController)
         }
@@ -91,7 +90,6 @@ class DevicesTable: UITableView {
 
 
 class DevicesTableVC: UITableViewController, StoreSubscriber {
-    
     var peripherals: [QSPeripheral] = []
     var updateTs: Date = Date()
     
@@ -110,16 +108,16 @@ class DevicesTableVC: UITableViewController, StoreSubscriber {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        STORE.subscribe(self)
+        QSIB_STORE.subscribe(self)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        STORE.unsubscribe(self)
+        QSIB_STORE.unsubscribe(self)
     }
 
     
-    func newState(state: AppState) {
+    func newState(state: QsibState) {
         let peripherals = state.peripherals
             .values
             .sorted(by: { $0.name() < $1.name() })

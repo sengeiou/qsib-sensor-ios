@@ -7,173 +7,172 @@
 
 import CoreBluetooth
 import Foundation
-import UIKit
 import ReSwift
-import Toast
 
 
-struct AppState: StateType {
+public struct QsibState: StateType {
     var ble: AppBluetoothDelegate? = nil
     var peripherals: [UUID: QSPeripheral] = [:]
-    var toastQueue: [ToastMessage] = []
     var activePeripheral: UUID?
 }
 
-struct ToastMessage {
-    let id = UUID()
-    var message: String? = nil
-    var duration: TimeInterval = TimeInterval(3)
-    var position: ToastPosition = .top
-    var title: String? = nil
-    var image: UIImage? = nil
-    var style: ToastStyle = .init()
-    var completion: ((Bool) -> Void)? = nil
-}
-
-struct InitBle: Action {
+public struct InitBle: Action {
     let delegate: AppBluetoothDelegate
 }
 
-struct DidDiscover: Action {
+public struct DidDiscover: Action {
     let peripheral: CBPeripheral
     let rssi: NSNumber
 }
 
-struct RequestConnect: Action {
+public struct RequestConnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct DidConnect: Action {
+public struct DidConnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct RequestDisconnect: Action {
+public struct RequestDisconnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct DidDisconnect: Action {
+public struct DidDisconnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct DidFailToConnect: Action {
+public struct DidFailToConnect: Action {
     let peripheral: CBPeripheral
 }
 
-struct DidDiscoverCharacteristic: Action {
+public struct DidDiscoverCharacteristic: Action {
     let peripheral: CBPeripheral
     let characteristic: CBCharacteristic
 }
 
-struct DidUpdateValueForBattery: Action {
+public struct DidUpdateValueForBattery: Action {
     let peripheral: CBPeripheral
     let batteryLevel: UInt8
 }
 
-struct DidUpdateValueForSignal: Action {
+public struct DidUpdateValueForSignal: Action {
     let peripheral: CBPeripheral
     let signal: Data
 }
 
-struct DidUpdateValueForFirmwareVersion: Action {
+public struct DidUpdateValueForFirmwareVersion: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForHardwareVersion: Action {
+public struct DidUpdateValueForHardwareVersion: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForError: Action {
+public struct DidUpdateValueForError: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForName: Action {
+public struct DidUpdateValueForName: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForUniqueIdentifier: Action {
+public struct DidUpdateValueForUniqueIdentifier: Action {
     let peripheral: CBPeripheral
     let value: String
 }
 
-struct DidUpdateValueForBootCount: Action {
+public struct DidUpdateValueForBootCount: Action {
     let peripheral: CBPeripheral
     let value: Int
 }
 
-struct WriteControl: Action {
+public struct DidUpdateValueForPersistedConfig: Action {
+    let peripheral: CBPeripheral
+    let value: PersistedConfig
+}
+
+public struct WriteControl: Action {
     let peripheral: CBPeripheral
     let control: Data
 }
 
-struct WriteHardwareVersion: Action {
+public struct WriteHardwareVersion: Action {
     let peripheral: CBPeripheral
     let hardwareVersion: String
 }
 
-struct WriteName: Action {
+public struct WriteName: Action {
     let peripheral: CBPeripheral
     let name: String
 }
 
-struct WriteUniqueIdentifier: Action {
+public struct WriteUniqueIdentifier: Action {
     let peripheral: CBPeripheral
     let uniqueIdentifier: String
 }
 
-struct UpdateProjectMode: Action {
+public struct WriteCalibrationFactor0: Action {
+    let peripheral: CBPeripheral
+    let f0: Float
+}
+
+public struct WriteCalibrationFactor1: Action {
+    let peripheral: CBPeripheral
+    let f1: Float
+}
+
+public struct UpdateProjectMode: Action {
     let peripheral: CBPeripheral
     let projectMode: String
 }
 
-struct UpdateSignalChannels: Action {
+public struct UpdateSignalChannels: Action {
     let peripheral: CBPeripheral
     let channels: Int
 }
 
-struct UpdateSignalHz: Action {
+public struct UpdateSignalHz: Action {
     let peripheral: CBPeripheral
     let hz: Int
 }
 
-struct StartMeasurement: Action {
+public struct StartMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
-struct ResumeMeasurement: Action {
+public struct ResumeMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
-struct PauseMeasurement: Action {
+public struct PauseMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
-struct StopMeasurement: Action {
+public struct StopMeasurement: Action {
     let peripheral: CBPeripheral
 }
 
-struct TurnOffSensor: Action {
+public struct TurnOffSensor: Action {
     let peripheral: CBPeripheral
 }
 
-struct AppendToast: Action {
-    let message: ToastMessage
-}
+public struct QsibTick: Action {}
 
-struct ProcessToast: Action {}
-
-struct Tick: Action {}
-
-struct IssueControlWriteFor: Action {
+public struct IssueControlWriteFor: Action {
     let peripheral: CBPeripheral
     let projectMode: String
 }
 
-func appReducer(action: Action, state: AppState?) -> AppState {
-    var state = state ?? AppState()
+public struct SetScan: Action {
+    let doScan: Bool
+}
+
+func qsibReducer(action: Action, state: QsibState?) -> QsibState {
+    var state = state ?? QsibState()
     
     switch action {
     case _ as ReSwiftInit:
@@ -188,15 +187,17 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         peripheral.add(characteristic: action.characteristic)
         save(&state, peripheral)
     case let action as RequestConnect:
-        state.ble?.centralManager.connect(action.peripheral, options: nil)
-        state.activePeripheral = action.peripheral.identifier
+        if action.peripheral.state != .connected && action.peripheral.state != .connecting {
+            state.ble?.centralManager.connect(action.peripheral, options: nil)
+            state.activePeripheral = action.peripheral.identifier
+        }
     case let action as DidConnect:
         let _ = getPeripheral(&state, action.peripheral)
     case let action as RequestDisconnect:
         state.ble?.centralManager.cancelPeripheralConnection(action.peripheral)
     case let action as DidDisconnect:
         let _ = getPeripheral(&state, action.peripheral)
-        ACTION_DISPATCH(action: StopMeasurement(peripheral: action.peripheral))
+        QSIB_ACTION_DISPATCH(action: StopMeasurement(peripheral: action.peripheral))
     case let action as DidFailToConnect:
         let _ = getPeripheral(&state, action.peripheral)
     case let action as DidUpdateValueForBattery:
@@ -216,7 +217,6 @@ func appReducer(action: Action, state: AppState?) -> AppState {
                 LOGGER.error("Failed to add payload to \(measurement)")
                 return
             }
-//            LOGGER.trace("Added \(samples) for updated signal value")
         }
     case let action as DidUpdateValueForFirmwareVersion:
         let peripheral = getPeripheral(&state, action.peripheral)
@@ -245,6 +245,10 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.bootCount = action.value
         save(&state, peripheral)
+    case let action as DidUpdateValueForPersistedConfig:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.persistedConfig = action.value
+        save(&state, peripheral)
     case let action as WriteControl:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.writeControl(data: action.control)
@@ -257,9 +261,44 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as WriteUniqueIdentifier:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.writeUniqueIdentifier(value: action.uniqueIdentifier)
+    case let action as WriteCalibrationFactor0:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        if nil == peripheral.persistedConfig {
+            peripheral.persistedConfig = PersistedConfig()
+        }
+        peripheral.persistedConfig!.f0 = action.f0
+        peripheral.writePersistedConfig()
+    case let action as WriteCalibrationFactor1:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        if nil == peripheral.persistedConfig {
+            peripheral.persistedConfig = PersistedConfig()
+        }
+        peripheral.persistedConfig!.f1 = action.f1
+        peripheral.writePersistedConfig()
     case let action as UpdateProjectMode:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.projectMode = action.projectMode
+        switch peripheral.projectMode ?? "" {
+        case MWV_PPG_V2:
+            if peripheral.signalHz == nil {
+                peripheral.signalHz = 1
+            }
+            if peripheral.signalChannels == nil {
+                peripheral.signalChannels = 6
+            }
+        case SHUNT_MONITOR_V1:
+            if peripheral.signalHz == nil {
+                peripheral.signalHz = 512
+            }
+            if peripheral.signalChannels == nil {
+                peripheral.signalChannels = 5
+            }
+        case SKIN_HYDRATION_SENSOR_V2:
+            peripheral.signalHz = 256
+            peripheral.signalChannels = 4
+        default:
+            fatalError("Not setting or checking project defaults for \(String(describing: peripheral.projectMode))")
+        }
         save(&state, peripheral)
     case let action as UpdateSignalHz:
         let peripheral = getPeripheral(&state, action.peripheral)
@@ -272,29 +311,20 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as StartMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         if let numChannels = peripheral.signalChannels {
-            peripheral.activeMeasurement = QsMeasurement(signalChannels: UInt8(numChannels))
-            peripheral.activeMeasurement?.state = .running
-            
+            var holdInRam: Bool = false
             switch peripheral.projectMode ?? "" {
-            case MWV_PPG_V2:
-                let state = peripheral.getOrDefaultProject()
-                let currentMode: String = state.defaultMode!
-                let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
-                let hz = 1000.0 / wtime
-                peripheral.activeMeasurement!.startNewDataSet(hz: hz)
-                peripheral.writeProjectControlForPpg()
-            case SHUNT_MONITOR_V1:
-                if let hz = peripheral.signalHz {
-                    peripheral.activeMeasurement!.startNewDataSet(hz: Float(hz))
-                    peripheral.writeProjectControlForShuntMonitor()
-                }
+            case SHUNT_MONITOR_V1, MWV_PPG_V2:
+                holdInRam = false
+            case SKIN_HYDRATION_SENSOR_V2:
+                holdInRam = true
             default:
-                if let hz = peripheral.signalHz {
-                    peripheral.activeMeasurement!.startNewDataSet(hz: Float(hz))
-                    let data = Data([0x69])
-                    ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
-                }
+                LOGGER.warning("\(String(describing: peripheral.projectMode)) doesn't specify how to transition between data sets.")
             }
+            peripheral.activeMeasurement = QSMeasurement(signalChannels: UInt8(numChannels), holdInRam: holdInRam)
+            peripheral.activeMeasurement?.state = .running
+            LOGGER.debug("Starting measurement ...")
+            startNewDataSet(for: peripheral)
+            peripheral.start()
             save(&state, peripheral)
         } else {
             LOGGER.error("Number of channels not set. Cannot start measurement")
@@ -302,51 +332,22 @@ func appReducer(action: Action, state: AppState?) -> AppState {
     case let action as ResumeMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .running
-        
-        switch peripheral.projectMode ?? "" {
-        case MWV_PPG_V2:
-            peripheral.writeProjectControlForPpg()
-        case SHUNT_MONITOR_V1:
-            peripheral.writeProjectControlForShuntMonitor()
-        default:
-            let data = Data([0x69])
-            ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
-        }
+        LOGGER.debug("Resuming measurement ...")
+        startNewDataSet(for: peripheral)
+        peripheral.resume()
     case let action as PauseMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .paused
-        LOGGER.info("Starting new dataset due to handling pause")
-        
-        switch peripheral.projectMode ?? "" {
-        case MWV_PPG_V2:
-            let state = peripheral.getOrDefaultProject()
-            let currentMode: String = state.defaultMode!
-            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
-            let hz = 1000.0 / wtime
-            peripheral.activeMeasurement?.startNewDataSet(hz: hz)
-            peripheral.pause()
-        default:
-            let params = peripheral.activeMeasurement?.dataSets.last?.getParams()
-            peripheral.activeMeasurement?.startNewDataSet(hz: params?.hz ?? 0, scaler: params?.scaler ?? 1)
-            let data = Data([0x00])
-            ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
-        }
+        startNewDataSet(for: peripheral)
+        peripheral.pause()
     case let action as StopMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         if let activeMeasurement = peripheral.activeMeasurement {
             peripheral.activeMeasurement?.state = .ended
             peripheral.finalizedMeasurements.append(activeMeasurement)
             peripheral.activeMeasurement = nil
+            peripheral.pause()
             save(&state, peripheral)
-            
-            
-            switch peripheral.projectMode ?? "" {
-            case MWV_PPG_V2:
-                peripheral.pause()
-            default:
-                let data = Data([0x00])
-                ACTION_DISPATCH(action: WriteControl(peripheral: action.peripheral, control: data))
-            }
         } else {
             LOGGER.trace("No active measurement to stop")
         }
@@ -357,11 +358,13 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         peripheral.turnOff()
     case let action as IssueControlWriteFor:
         let peripheral = getPeripheral(&state, action.peripheral)
+        startNewDataSet(for: peripheral)
+        
         switch action.projectMode {
         case MWV_PPG_V2:
             let state = peripheral.getOrDefaultProject()
             let currentMode: String = state.defaultMode!
-            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes?[currentMode]?.wcycles ?? 0)))
+            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
             let hz = 1000.0 / wtime
             peripheral.activeMeasurement?.startNewDataSet(hz: hz)
             peripheral.writeProjectControlForPpg()
@@ -370,38 +373,39 @@ func appReducer(action: Action, state: AppState?) -> AppState {
         default:
             LOGGER.error("Don't know how to handle control writes for projectMode \(action.projectMode)")
         }
-    case let action as AppendToast:
-        state.toastQueue.append(action.message)
-    case _ as ProcessToast:
-        state.toastQueue.removeFirst()
-    case _ as Tick:
+    case let action as SetScan:
+        state.ble!.setScan(doScan: action.doScan)
+    case _ as QsibTick:
         break
     default:
         LOGGER.warning("Skipped processing \(action)")
     }
     
+    // Allow someone to add logic to run for this aciton after the state has been updated
+    STORE_CALLBACK.fire(&state, action)
+    
     return state
 }
 
-let STORE = Store<AppState>(
-    reducer: appReducer,
+public let QSIB_STORE = Store<QsibState>(
+    reducer: qsibReducer,
     state: nil
 )
 
-func ACTION_DISPATCH(action: Action) {
+public func QSIB_ACTION_DISPATCH(action: Action) {
     DISPATCH.execute {
-        STORE.dispatch(action)
+        QSIB_STORE.dispatch(action)
     }
 }
 
-func TICK() {
+public func QSIB_TICK() {
     DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-        ACTION_DISPATCH(action: Tick())
-        TICK()
+        QSIB_ACTION_DISPATCH(action: QsibTick())
+        QSIB_TICK()
     }
 }
 
-func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral) -> QSPeripheral {
+func getPeripheral(_ state: inout QsibState, _ peripheral: CBPeripheral) -> QSPeripheral {
     if let qsp = state.peripherals[peripheral.identifier] {
         qsp.set(peripheral: peripheral)
         state.peripherals[peripheral.identifier] = qsp
@@ -411,25 +415,52 @@ func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral) -> QSPer
     }
 }
 
-func getPeripheral(_ state: inout AppState, _ peripheral: CBPeripheral, rssi: NSNumber) -> QSPeripheral {
+func getPeripheral(_ state: inout QsibState, _ peripheral: CBPeripheral, rssi: NSNumber) -> QSPeripheral {
     if let qsp = state.peripherals[peripheral.identifier] {
         qsp.set(peripheral: peripheral, rssi: rssi)
-//        state.peripherals[peripheral.identifier] = qsp
+        qsp.ts = Date()
         return qsp
     } else {
         let qsp = QSPeripheral(peripheral: peripheral, rssi: rssi)
         state.peripherals[qsp.id()] = qsp
+        qsp.ts = Date()
         return qsp
     }
 }
 
-func save(_ state: inout AppState, _ peripheral: QSPeripheral) {
+func save(_ state: inout QsibState, _ peripheral: QSPeripheral) {
     LOGGER.trace("Saving \(peripheral.id()) ...")
     peripheral.save()
-    saveOften(&state, peripheral)
 }
 
-func saveOften(_ state: inout AppState, _ peripheral: QSPeripheral) {
-//    state.peripherals[peripheral.id()] = peripheral
+func startNewDataSet(for peripheral: QSPeripheral) {
+    switch peripheral.projectMode ?? "" {
+    case MWV_PPG_V2:
+        let state = peripheral.getOrDefaultProject()
+        let currentMode: String = state.defaultMode!
+        let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
+        let hz = 1000.0 / wtime
+        peripheral.activeMeasurement?.startNewDataSet(hz: hz)
+    case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
+        if let hz = peripheral.signalHz {
+            peripheral.activeMeasurement?.startNewDataSet(hz: Float(hz))
+        } else {
+            peripheral.signalHz = 1
+            peripheral.activeMeasurement?.startNewDataSet(hz: Float(peripheral.signalHz!))
+        }
+    default:
+        fatalError("Don't know how to start new dataset for \(String(describing: peripheral.projectMode))")
+    }
+}
+
+// Protocol to allow others register work to perform ops on dispatch
+public protocol SubscriberCallback {
+    func fire(_ state: inout QsibState, _ action: Action)
+}
+
+public class NopCallback: SubscriberCallback {
+    public func fire(_ state: inout QsibState, _ action: Action) {
+        // nop
+    }
 }
 
