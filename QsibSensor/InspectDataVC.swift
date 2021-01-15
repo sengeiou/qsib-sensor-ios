@@ -372,7 +372,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                         cell.detailTextLabel?.text = "\(wtime) ms"
                     case 5:
                         cell.textLabel?.text = "LED Drive"
-                        let drive = opMode.drive == nil ? "---" : "\((4 + (opMode.drive! * 2)))"
+                        let drive = opMode.drive == nil ? "---" : "\(opMode.drive!)"
                         cell.detailTextLabel?.text = "\(drive) mA"
                     case 6:
                         cell.textLabel?.text = "Apply"
@@ -501,7 +501,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 }
                 let wtime = 2.78 * Float(i + 1) * 1000
                 let min_wtime = Float(mode.atime ?? 0 + 1) * Float(mode.astep ?? 0 + 1) * 2.78
-                if wtime >= min_wtime {
+                if wtime > min_wtime {
                     if i < firstOption {
                         firstOption = i
                     }
@@ -514,7 +514,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 return "\(waitStr) ms"
             }
             if let wcycles = project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.wcycles {
-                editorVC.confirmedValue = wcycles - firstOption + 1
+                editorVC.confirmedValue = (wcycles - 1) - firstOption
             } else {
                 editorVC.confirmedValue =  0
             }
@@ -522,7 +522,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.predicate = { (i) in return true }
             editorVC.actionFactory = { selectedIndex in
                 LOGGER.debug("Selected wtime \(editorVC.options[selectedIndex])")
-                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.wcycles = firstOption + selectedIndex
+                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.wcycles = (firstOption + selectedIndex) + 1
                 peripheral.save()
                 return QsibTick()
             }
@@ -534,12 +534,12 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.options = (0...255).map { i in
                 return "\(4 + (i * 2)) mA"
             }
-            editorVC.confirmedValue = project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.drive ?? 0
+            editorVC.confirmedValue = (((project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.drive ?? 4) - 4) / 2)
             editorVC.proposedValue = editorVC.confirmedValue
             editorVC.predicate = { (i) in return true }
             editorVC.actionFactory = { selectedIndex in
                 LOGGER.debug("Selected led drive \(editorVC.options[selectedIndex])")
-                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.drive = selectedIndex
+                project.mwv_ppg_v2_modes[project.defaultMode ?? ""]?.drive = 4 + (selectedIndex * 2)
                 peripheral.save()
                 return QsibTick()
             }
