@@ -13,6 +13,7 @@ import Toast
 public let MWV_PPG_V2 = "Mutliwavelength PPG V2"
 public let SHUNT_MONITOR_V1 = "Shunt Monitor V1"
 public let SKIN_HYDRATION_SENSOR_V2 = "Skin Hydration V2"
+public let OXIMETER_V0 = "Oximeter V0"
 
 
 public class MwvPpgV2ModeCodableState: Codable {
@@ -32,6 +33,19 @@ public class SkinHydrationV2CodableState: Codable {
     var mode: String?
 }
 
+public class OximeterV0CodableState: Codable {
+    var mode: String?
+    var biomed_id: Int?
+    var fifo_config: Int?
+    var mode_config: Int?
+    var spo2_config: Int?
+    var led_amp: Int?
+    var multi_led: Int?
+    var indicator_control: Int?
+    var indicator_freq: Int?
+    var indicator_duty_cycle: Int?
+}
+
 public class ProjectCodableState: Codable {
     var version: Int = 1
     var defaultMode: String?
@@ -39,6 +53,7 @@ public class ProjectCodableState: Codable {
     var mwv_ppg_v2_modes: [String: MwvPpgV2ModeCodableState] = [:]
     var sm_v1_modes: [String: ShuntMonitorV1CodableState] = [:]
     var shs_v2_modes: [String: SkinHydrationV2CodableState] = [:]
+    var ox_v0_modes: [String: OximeterV0CodableState] = [:]
 }
 
 public class PersistedConfig: Codable {
@@ -250,6 +265,8 @@ public class QSPeripheral: Hashable {
             writeProjectControlForShuntMonitor()
         case SKIN_HYDRATION_SENSOR_V2:
             writeProjectControlForSkinHydrationV2()
+        case OXIMETER_V0:
+            writeProjectControlForOximeterV0()
         default:
             fatalError("Unsupported peripheral type to use to start measurement \(String(describing: projectMode))")
         }
@@ -278,6 +295,8 @@ public class QSPeripheral: Hashable {
             writeControl(data: Data([0x00]))
         case SKIN_HYDRATION_SENSOR_V2:
             writeControl(data: Data([0x01, 0x00]))
+        case OXIMETER_V0:
+            writeControl(data: Data([0x02]))
         default:
             fatalError("Don't know how to pause \(String(describing: self.projectMode))")
         }
@@ -375,6 +394,42 @@ public class QSPeripheral: Hashable {
     public func writeProjectControlForSkinHydrationV2() {
         let data = Data([0x02, 0x01])
         writeControl(data: data)
+    }
+    
+    public func writeProjectControlForOximeterV0() {
+        if let mode = projects[OXIMETER_V0]?.defaultMode,
+           let modeInfo = projects[OXIMETER_V0]?.ox_v0_modes[mode],
+           let biomed_id = modeInfo.biomed_id,
+           let fifo_config = modeInfo.fifo_config,
+           let mode_config = modeInfo.mode_config,
+           let spo2_config = modeInfo.spo2_config,
+           let led_amp = modeInfo.led_amp,
+           let multi_led = modeInfo.multi_led,
+           let indicator_control = modeInfo.indicator_control,
+           let indicator_freq = modeInfo.indicator_freq,
+           let indicator_duty_cycle = modeInfo.indicator_duty_cycle {
+            
+            let data = Data([
+                UInt8(0x01),
+                UInt8(biomed_id),
+                UInt8(fifo_config),
+                UInt8(mode_config),
+                UInt8(spo2_config),
+                UInt8((UInt16(led_amp) >> 16) & 0xFF),
+                UInt8((UInt16(led_amp) >> 8) & 0xFF),
+                UInt8((UInt16(led_amp) >> 0) & 0xFF),
+                UInt8((UInt16(multi_led) >> 8) & 0xFF),
+                UInt8((UInt16(multi_led) >> 0) & 0xFF),
+                UInt8(0),
+                UInt8(0),
+                UInt8(indicator_control),
+                UInt8(indicator_freq),
+                UInt8(indicator_duty_cycle)
+                ])
+            writeControl(data: data)
+        } else {
+            LOGGER.error("Not enough info set to write control for \(OXIMETER_V0)")
+        }
     }
     
     public func getOrDefaultProject() -> ProjectCodableState {
@@ -475,6 +530,37 @@ public class QSPeripheral: Hashable {
             }
             
             return project
+        case OXIMETER_V0:
+            if projects[OXIMETER_V0] == nil {
+                let projectState = ProjectCodableState()
+                projectState.defaultMode = "MODE 0"
+                
+                let mode0State = OximeterV0CodableState()
+                mode0State.mode = "MODE 0"
+                mode0State.biomed_id = 0x01
+                mode0State.fifo_config = 0xff
+                mode0State.mode_config = 0xff
+                mode0State.spo2_config = 0xff
+                mode0State.led_amp = 0xffffff
+                mode0State.multi_led = 0xffff
+                // v0/1 2 bytes reserved
+                mode0State.indicator_control = 0xff
+                mode0State.indicator_freq = 0xff
+                mode0State.indicator_duty_cycle = 0xff
+
+                
+                projectState.ox_v0_modes[mode0State.mode!] = mode0State
+                
+                
+                projects[OXIMETER_V0] = projectState
+            }
+            
+            guard let project = projects[projectMode ?? ""] else {
+                fatalError("Inconsistent app state for project \(self)")
+            }
+            
+            return project
+
         default:
             LOGGER.error("No implementation of default for \(projectMode ?? "")")
             return projects[projectMode ?? ""] ?? ProjectCodableState()
