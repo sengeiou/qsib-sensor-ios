@@ -351,8 +351,11 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
 extension CBUUID {
     var UUIDValue: UUID? {
         get {
-            guard self.data.count == MemoryLayout<uuid_t>.size else { return nil }
-            return self.data.withUnsafeBytes {
+            var data = self.data
+            if self.data.count < MemoryLayout<uuid_t>.size {
+                data.append(Data(repeating: 0, count: MemoryLayout<uuid_t>.size - self.data.count))
+            }
+            return data.withUnsafeBytes {
                 (pointer: UnsafeRawBufferPointer) -> UUID in
                 let uuid = pointer.load(as: uuid_t.self)
                 return UUID(uuid: uuid)
