@@ -52,7 +52,7 @@ public struct DidDiscoverCharacteristic: Action {
 
 public struct DidUpdateValueForBattery: Action {
     let peripheral: CBPeripheral
-    let batteryLevel: UInt8
+    let batteryLevel: Int
 }
 
 public struct DidUpdateValueForSignal: Action {
@@ -203,7 +203,7 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
     case let action as DidUpdateValueForBattery:
         let peripheral = getPeripheral(&state, action.peripheral)
         LOGGER.trace("\(peripheral.name()) has battery level \(action.batteryLevel)")
-        peripheral.batteryLevel = Int(action.batteryLevel)
+        peripheral.batteryLevel = action.batteryLevel
         save(&state, peripheral)
     case let action as DidUpdateValueForSignal:
         let peripheral = getPeripheral(&state, action.peripheral)

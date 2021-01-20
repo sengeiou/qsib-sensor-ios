@@ -298,7 +298,11 @@ public class QSPeripheral: Hashable {
         case SKIN_HYDRATION_SENSOR_V2:
             writeControl(data: Data([0x01, 0x00]))
         case OXIMETER_V0:
-            writeControl(data: Data([0x02]))
+            if let characteristic = self.characteristics[UUID(uuidString: BIOMED_CHAR2_UUID.uuidString)!] {
+                self.cbp.writeValue(Data([0x02]), for: characteristic, type: .withResponse)
+            } else {
+                LOGGER.error("Failed to find BIOMED_CHAR2_UUID \(BIOMED_CHAR2_UUID)")
+            }
         default:
             fatalError("Don't know how to pause \(String(describing: self.projectMode))")
         }
@@ -399,38 +403,45 @@ public class QSPeripheral: Hashable {
     }
     
     public func writeProjectControlForOximeterV0() {
-        if let mode = projects[OXIMETER_V0]?.defaultMode,
-           let modeInfo = projects[OXIMETER_V0]?.ox_v0_modes[mode],
-           let biomed_id = modeInfo.biomed_id,
-           let fifo_config = modeInfo.fifo_config,
-           let mode_config = modeInfo.mode_config,
-           let spo2_config = modeInfo.spo2_config,
-           let led_amp = modeInfo.led_amp,
-           let multi_led = modeInfo.multi_led,
-           let indicator_control = modeInfo.indicator_control,
-           let indicator_freq = modeInfo.indicator_freq,
-           let indicator_duty_cycle = modeInfo.indicator_duty_cycle {
-            
-            let data = Data([
-                UInt8(0x01),
-                UInt8(biomed_id),
-                UInt8(fifo_config),
-                UInt8(mode_config),
-                UInt8(spo2_config),
-                UInt8((UInt32(led_amp) >> 16) & 0xFF),
-                UInt8((UInt32(led_amp) >> 8) & 0xFF),
-                UInt8((UInt32(led_amp) >> 0) & 0xFF),
-                UInt8((UInt16(multi_led) >> 8) & 0xFF),
-                UInt8((UInt16(multi_led) >> 0) & 0xFF),
-                UInt8(0xff),
-                UInt8(0xff),
-                UInt8(indicator_control),
-                UInt8(indicator_freq),
-                UInt8(indicator_duty_cycle)
-                ])
-            writeControl(data: data)
+        
+//        if let mode = projects[OXIMETER_V0]?.defaultMode,
+//           let modeInfo = projects[OXIMETER_V0]?.ox_v0_modes[mode],
+//           let biomed_id = modeInfo.biomed_id,
+//           let fifo_config = modeInfo.fifo_config,
+//           let mode_config = modeInfo.mode_config,
+//           let spo2_config = modeInfo.spo2_config,
+//           let led_amp = modeInfo.led_amp,
+//           let multi_led = modeInfo.multi_led,
+//           let indicator_control = modeInfo.indicator_control,
+//           let indicator_freq = modeInfo.indicator_freq,
+//           let indicator_duty_cycle = modeInfo.indicator_duty_cycle {
+//
+//            let data = Data([
+//                UInt8(0x01),
+//                UInt8(biomed_id),
+//                UInt8(fifo_config),
+//                UInt8(mode_config),
+//                UInt8(spo2_config),
+//                UInt8((UInt32(led_amp) >> 16) & 0xFF),
+//                UInt8((UInt32(led_amp) >> 8) & 0xFF),
+//                UInt8((UInt32(led_amp) >> 0) & 0xFF),
+//                UInt8((UInt16(multi_led) >> 8) & 0xFF),
+//                UInt8((UInt16(multi_led) >> 0) & 0xFF),
+//                UInt8(0xff),
+//                UInt8(0xff),
+//                UInt8(indicator_control),
+//                UInt8(indicator_freq),
+//                UInt8(indicator_duty_cycle)
+//                ])
+//            writeControl(data: data)
+//        } else {
+//            LOGGER.error("Not enough info set to write control for \(OXIMETER_V0)")
+//        }
+        
+        if let characteristic = self.characteristics[UUID(uuidString: BIOMED_CHAR2_UUID.uuidString)!] {
+            self.cbp.writeValue(Data([0x01]), for: characteristic, type: .withResponse)
         } else {
-            LOGGER.error("Not enough info set to write control for \(OXIMETER_V0)")
+            LOGGER.error("Failed to find BIOMED_CHAR2_UUID \(BIOMED_CHAR2_UUID)")
         }
     }
     

@@ -26,12 +26,21 @@ let QSS_UUID_UUID = CBUUID(string: "070062c4-b99e-4141-9439-c4f9db977899")
 let QSS_BOOT_COUNT_UUID = CBUUID(string: "080062c4-b99e-4141-9439-c4f9db977899")
 let QSS_SHS_CONF_UUID = CBUUID(string: "090062c4-b99e-4141-9439-c4f9db977899")
 
+let BIOMED_SERVICE_UUID = CBUUID(string: "FFF0")
+let BIOMED_CHAR1_UUID = CBUUID(string: "FFF1")
+let BIOMED_CHAR2_UUID = CBUUID(string: "FFF2")
+let BIOMED_CHAR3_UUID = CBUUID(string: "FFF3")
+let BIOMED_CHAR4_UUID = CBUUID(string: "FFF4")
+
 
 class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         
     var centralManager: CBCentralManager!
     var isScanning: Bool = false
-    var count: Int = 0
+    var biomedCounter: UInt64 = 0
+    var prevBiomedCounter: UInt8? = nil
+    var biomedMayWrap: Bool = false
+
     
 //    let CENTRAL_MANAGER_IDENTIFIER = "CENTRAL_MANAGER_IDENTIFIER"
     let CENTRAL_MANAGER_IDENTIFIER: String? = nil
@@ -50,7 +59,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     func setScan(doScan: Bool) {
         if doScan {
             LOGGER.info("Beginning scan for QSIB Sensor ...")
-            centralManager.scanForPeripherals(withServices: [QSIB_SENSOR_SERVICE_UUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
+            centralManager.scanForPeripherals(withServices: [QSIB_SENSOR_SERVICE_UUID, BIOMED_SERVICE_UUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
             isScanning = true
         } else {
             LOGGER.info("Stopping scan for QSIB Sensor ...")
@@ -92,8 +101,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         LOGGER.debug("didConnect peripheral: \(peripheral)")
                 
         QSIB_ACTION_DISPATCH(action: DidConnect(peripheral: peripheral))
-        peripheral.discoverServices([QSIB_SENSOR_SERVICE_UUID, BATTERY_SERVICE_UUID])
-        count = 0
+        peripheral.discoverServices([QSIB_SENSOR_SERVICE_UUID, BIOMED_SERVICE_UUID, BATTERY_SERVICE_UUID])
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
@@ -106,8 +114,6 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         LOGGER.debug("didFailToConnect peripheral: \(peripheral) with: \(String(describing: error))")
         
         QSIB_ACTION_DISPATCH(action: DidFailToConnect(peripheral: peripheral))
-
-
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
@@ -118,6 +124,9 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
                 peripheral.discoverCharacteristics(nil, for: service)
             } else if service.uuid == QSIB_SENSOR_SERVICE_UUID {
                 LOGGER.debug("Discovering services for QSIB_SENSOR_SERVICE_UUID: \(QSIB_SENSOR_SERVICE_UUID)")
+                peripheral.discoverCharacteristics(nil, for: service)
+            } else if service.uuid == BIOMED_SERVICE_UUID {
+                LOGGER.debug("Discovering services for BIOMED_SERVICE_UUID: \(BIOMED_SERVICE_UUID)")
                 peripheral.discoverCharacteristics(nil, for: service)
             }
         }
@@ -174,6 +183,28 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
                     LOGGER.warning("Discovered unexpected QSS Characteristic: \(characteristic)")
                 }
             }
+        } else if service.uuid == BIOMED_SERVICE_UUID {
+            for characteristic in service.characteristics! {
+                QSIB_ACTION_DISPATCH(action: DidDiscoverCharacteristic(peripheral: peripheral, characteristic: characteristic))
+                switch characteristic.uuid {
+                case BIOMED_CHAR1_UUID:
+                    LOGGER.trace("Discovered BIOMED_CHAR1_UUID: \(BIOMED_CHAR1_UUID)")
+                    peripheral.readValue(for: characteristic)
+                case BIOMED_CHAR2_UUID:
+                    LOGGER.trace("Discovered BIOMED_CHAR2_UUID: \(BIOMED_CHAR2_UUID)")
+                    peripheral.readValue(for: characteristic)
+                case BIOMED_CHAR3_UUID:
+                    LOGGER.trace("Discovered BIOMED_CHAR3_UUID: \(BIOMED_CHAR3_UUID)")
+                    peripheral.setNotifyValue(true, for: characteristic)
+                    peripheral.readValue(for: characteristic)
+                case BIOMED_CHAR4_UUID:
+                    LOGGER.trace("Discovered BIOMED_CHAR4_UUID: \(BIOMED_CHAR4_UUID)")
+                    peripheral.setNotifyValue(true, for: characteristic)
+                    peripheral.readValue(for: characteristic)
+                default:
+                    LOGGER.warning("Discovered unexpected BIOMED Characteristic: \(characteristic)")
+                }
+            }
         }
     }
     
@@ -194,7 +225,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         switch characteristic.uuid {
         case BATTERY_SERVICE_BATTERY_LEVEL_CHARACTERISTIC_UUID:
             LOGGER.trace("Updated BATTERY_SERVICE_BATTERY_LEVEL_CHARACTERISTIC_UUID: \(BATTERY_SERVICE_BATTERY_LEVEL_CHARACTERISTIC_UUID)")
-            QSIB_ACTION_DISPATCH(action: DidUpdateValueForBattery(peripheral: peripheral, batteryLevel: UInt8(characteristic.value![0])))
+            QSIB_ACTION_DISPATCH(action: DidUpdateValueForBattery(peripheral: peripheral, batteryLevel: Int(characteristic.value![0])))
         case QSS_CONTROL_UUID:
             LOGGER.trace("Updated QSS_CONTROL_UUID: \(QSS_CONTROL_UUID) :: \(characteristic.value!.hexEncodedString())")
         case QSS_SIGNAL_UUID:
@@ -240,6 +271,77 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             persistedConfig.f0 = data[0..<4].withUnsafeBytes { $0.load(as: Float.self) }
             persistedConfig.f1 = data[4..<8].withUnsafeBytes { $0.load(as: Float.self) }
             QSIB_ACTION_DISPATCH(action: DidUpdateValueForPersistedConfig(peripheral: peripheral, value: persistedConfig))
+        case BIOMED_CHAR1_UUID:
+            LOGGER.trace("Updated BIOMED_CHAR1_UUID: \(BIOMED_CHAR1_UUID)")
+            guard let value = characteristic.value else {
+                LOGGER.error("Invalid characteristic update for BIOMED_CHAR1_UUID: \(characteristic)")
+                return
+            }
+            LOGGER.trace("Updated BIOMED_CHAR1_UUID with \(value.hexEncodedString())")
+        case BIOMED_CHAR2_UUID:
+            LOGGER.trace("Updated BIOMED_CHAR2_UUID: \(BIOMED_CHAR2_UUID)")
+            guard let value = characteristic.value else {
+                LOGGER.error("Invalid characteristic update for BIOMED_CHAR2_UUID: \(characteristic)")
+                return
+            }
+            LOGGER.trace("Updated BIOMED_CHAR2_UUID with \(value.hexEncodedString())")
+        case BIOMED_CHAR3_UUID:
+            LOGGER.trace("Updated BIOMED_CHAR3_UUID: \(BIOMED_CHAR3_UUID)")
+            guard let value = characteristic.value else {
+                LOGGER.error("Invalid characteristic update for BIOMED_CHAR3_UUID: \(characteristic)")
+                return
+            }
+            LOGGER.trace("Updated BIOMED_CHAR3_UUID with \(value.hexEncodedString())")
+            
+            let lsbMv = Int(value[0])
+            let msbMv = Int(value[1])
+            let batteryMv = Int((msbMv << 8) + lsbMv) * 10
+            QSIB_ACTION_DISPATCH(action: DidUpdateValueForBattery(peripheral: peripheral, batteryLevel: batteryMv))
+        case BIOMED_CHAR4_UUID:
+            LOGGER.trace("Updated BIOMED_CHAR4_UUID: \(BIOMED_CHAR4_UUID)")
+            guard let value = characteristic.value else {
+                LOGGER.error("Invalid characteristic update for BIOMED_CHAR4_UUID: \(characteristic)")
+                return
+            }
+            LOGGER.trace("Updated BIOMED_CHAR4_UUID with \(value.hexEncodedString())")
+            
+            let counter = UInt8(value[0])
+            let messageSize = Int(value[1])
+            guard messageSize == 202 else {
+                LOGGER.error("Invalid BIOMED_CHAR4_UUID value. Expected payload of 202 bytes")
+                return
+            }
+            
+            if let prevCounter = prevBiomedCounter {
+                if prevCounter > 245 && counter < 10 {
+                    biomedCounter += UInt64((255 - prevCounter) + counter)
+                } else {
+                    biomedCounter += UInt64(counter - prevCounter)
+                }
+            } else {
+                biomedCounter = UInt64(counter)
+            }
+            prevBiomedCounter = counter
+            
+            
+            let signalPayloadBytes = 8 + (2 * 2 * 100)
+            var data = Data(repeating: 0, count: signalPayloadBytes)
+            data[0] = UInt8(signalPayloadBytes)
+            data[1] = 0
+            data[2] = 2
+            data[3] = (UInt8(2) << 4) | (UInt8(0))
+            data[4] = UInt8(biomedCounter & 0xff)
+            data[5] = UInt8((biomedCounter >> 8) & 0xff)
+            data[6] = UInt8((biomedCounter >> 16) & 0xff)
+            data[7] = UInt8((biomedCounter >> 24) & 0xff)
+
+            
+            data.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) in
+                let offsetPtr = ptr.baseAddress!.bindMemory(to: UInt8.self, capacity: 208) + 8
+                value.copyBytes(to: offsetPtr, from: 2..<202)
+            }
+            
+            QSIB_ACTION_DISPATCH(action: DidUpdateValueForSignal(peripheral: peripheral, signal: data))
         default:
             LOGGER.warning("Updated unexpected characteristic: \(characteristic)")
         }
