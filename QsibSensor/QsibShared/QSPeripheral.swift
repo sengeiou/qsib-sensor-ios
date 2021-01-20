@@ -45,6 +45,7 @@ public class OximeterV0CodableState: Codable {
     var indicator_control: Int?
     var indicator_freq: Int?
     var indicator_duty_cycle: Int?
+    var effective_sample_hz: Float?
 }
 
 public class ProjectCodableState: Codable {
@@ -536,7 +537,7 @@ public class QSPeripheral: Hashable {
                 let projectState = ProjectCodableState()
                 projectState.defaultMode = "MODE 0"
                 
-                let mode0State = OximeterV0CodableState()
+                var mode0State = OximeterV0CodableState()
                 mode0State.mode = "MODE 0"
                 mode0State.biomed_id = 0x01
                 mode0State.fifo_config = 0x57
@@ -548,7 +549,8 @@ public class QSPeripheral: Hashable {
                 mode0State.indicator_control = 0x01
                 mode0State.indicator_freq = 100
                 mode0State.indicator_duty_cycle = 5
-
+                
+                mode0State = updateModeStateForOximeterV0(modeState: mode0State)
                 
                 projectState.ox_v0_modes[mode0State.mode!] = mode0State
                 
@@ -566,5 +568,56 @@ public class QSPeripheral: Hashable {
             LOGGER.error("No implementation of default for \(projectMode ?? "")")
             return projects[projectMode ?? ""] ?? ProjectCodableState()
         }
+    }
+    
+    func updateModeStateForOximeterV0(modeState: OximeterV0CodableState) -> OximeterV0CodableState {
+        var samplesPerSecond = 0
+        let spo2_sr = (0b00011100 & modeState.spo2_config!) >> 2
+        switch spo2_sr {
+        case 0b000:
+            samplesPerSecond = 50
+        case 0b001:
+            samplesPerSecond = 100
+        case 0b010:
+            samplesPerSecond = 200
+        case 0b011:
+            samplesPerSecond = 400
+        case 0b100:
+            samplesPerSecond = 800
+        case 0b101:
+            samplesPerSecond = 1000
+        case 0b110:
+            samplesPerSecond = 1600
+        case 0b111:
+            samplesPerSecond = 3200
+        default:
+            fatalError("Invalid configuration manipulation for spo2_sr samples per second")
+        }
+        
+        let smp_ave = (0b11100000 & modeState.fifo_config!) >> 5
+        var samplesPerFifoSample = 1
+        switch smp_ave {
+        case 0b000:
+            samplesPerFifoSample = 1
+        case 0b001:
+            samplesPerFifoSample = 2
+        case 0b010:
+            samplesPerFifoSample = 4
+        case 0b011:
+            samplesPerFifoSample = 8
+        case 0b100:
+            samplesPerFifoSample = 16
+        case 0b101:
+            samplesPerFifoSample = 32
+        case 0b110:
+            samplesPerFifoSample = 32
+        case 0b111:
+            samplesPerFifoSample = 32
+        default:
+            fatalError("Invalid configuration manipulation for smp_ave samples per fifo sample")
+        }
+        modeState.effective_sample_hz = Float(samplesPerSecond) / Float(samplesPerFifoSample)
+        
+        return modeState
     }
 }

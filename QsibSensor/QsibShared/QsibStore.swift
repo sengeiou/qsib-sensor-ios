@@ -439,8 +439,8 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         let state = peripheral.getOrDefaultProject()
         let currentMode: String = state.defaultMode!
         let modeInfo = state.ox_v0_modes[currentMode]!
-        let indicator_freq = modeInfo.indicator_freq!
-        peripheral.activeMeasurement?.startNewDataSet(hz: Float(indicator_freq))
+        let hz = modeInfo.effective_sample_hz!
+        peripheral.activeMeasurement?.startNewDataSet(hz: hz)
     case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
         if let hz = peripheral.signalHz {
             peripheral.activeMeasurement?.startNewDataSet(hz: Float(hz))
