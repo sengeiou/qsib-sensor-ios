@@ -96,7 +96,12 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         break
                     case 2:
                         let sampleRateCell = tableView.cellForRow(at: indexPath)
-                        sampleRateCell?.detailTextLabel?.text = peripheral.signalHz == nil ? "_ Hz" : "\(peripheral.signalHz!) Hz"
+                        switch peripheral.projectMode ?? "" {
+                        case MWV_PPG_V2, OXIMETER_V0:
+                            sampleRateCell?.detailTextLabel?.text = "--- Hz"
+                        default:
+                            sampleRateCell?.detailTextLabel?.text = peripheral.signalHz == nil ? "_ Hz" : "\(peripheral.signalHz!) Hz"
+                        }
                     case 3:
                         let channelCell = tableView.cellForRow(at: indexPath)
                         channelCell?.detailTextLabel?.text = peripheral.signalChannels == nil ? "_" : "\(peripheral.signalChannels!)"
@@ -194,7 +199,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                 let storyboard = UIStoryboard(name: "Main", bundle: nil)
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
                 editorVC.headerLabelText = "Project Mode"
-                editorVC.options = [SHUNT_MONITOR_V1, "Milk Sensor v0", MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2]
+                editorVC.options = [OXIMETER_V0, MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1, MILK_SENSOR_V0]
                 if let projectMode = peripheral.projectMode {
                     editorVC.proposedValue = editorVC.options.firstIndex(of: "\(projectMode)") ?? 0
                     editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(projectMode)")

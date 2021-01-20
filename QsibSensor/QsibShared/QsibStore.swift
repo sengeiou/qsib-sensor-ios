@@ -296,6 +296,14 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         case SKIN_HYDRATION_SENSOR_V2:
             peripheral.signalHz = 256
             peripheral.signalChannels = 4
+        case OXIMETER_V0:
+            if peripheral.signalHz == nil {
+                peripheral.signalHz = 1
+            }
+            
+            if peripheral.signalChannels == nil {
+                peripheral.signalChannels = 2
+            }
         default:
             fatalError("Not setting or checking project defaults for \(String(describing: peripheral.projectMode))")
         }
@@ -313,7 +321,7 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         if let numChannels = peripheral.signalChannels {
             var holdInRam: Bool = false
             switch peripheral.projectMode ?? "" {
-            case SHUNT_MONITOR_V1, MWV_PPG_V2:
+            case SHUNT_MONITOR_V1, MWV_PPG_V2, OXIMETER_V0:
                 holdInRam = false
             case SKIN_HYDRATION_SENSOR_V2:
                 holdInRam = true
@@ -359,20 +367,6 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
     case let action as IssueControlWriteFor:
         let peripheral = getPeripheral(&state, action.peripheral)
         startNewDataSet(for: peripheral)
-        
-        switch action.projectMode {
-        case MWV_PPG_V2:
-            let state = peripheral.getOrDefaultProject()
-            let currentMode: String = state.defaultMode!
-            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
-            let hz = 1000.0 / wtime
-            peripheral.activeMeasurement?.startNewDataSet(hz: hz)
-            peripheral.writeProjectControlForPpg()
-        case SHUNT_MONITOR_V1:
-            peripheral.writeProjectControlForShuntMonitor()
-        default:
-            LOGGER.error("Don't know how to handle control writes for projectMode \(action.projectMode)")
-        }
     case let action as SetScan:
         state.ble!.setScan(doScan: action.doScan)
     case _ as QsibTick:
@@ -441,6 +435,12 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
         let hz = 1000.0 / wtime
         peripheral.activeMeasurement?.startNewDataSet(hz: hz)
+    case OXIMETER_V0:
+        let state = peripheral.getOrDefaultProject()
+        let currentMode: String = state.defaultMode!
+        let modeInfo = state.ox_v0_modes[currentMode]!
+        let indicator_freq = modeInfo.indicator_freq!
+        peripheral.activeMeasurement?.startNewDataSet(hz: Float(indicator_freq))
     case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
         if let hz = peripheral.signalHz {
             peripheral.activeMeasurement?.startNewDataSet(hz: Float(hz))

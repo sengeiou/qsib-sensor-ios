@@ -14,6 +14,7 @@ public let MWV_PPG_V2 = "Mutliwavelength PPG V2"
 public let SHUNT_MONITOR_V1 = "Shunt Monitor V1"
 public let SKIN_HYDRATION_SENSOR_V2 = "Skin Hydration V2"
 public let OXIMETER_V0 = "Oximeter V0"
+public let MILK_SENSOR_V0 = "Milk Sensor V0"
 
 
 public class MwvPpgV2ModeCodableState: Codable {
@@ -420,8 +421,8 @@ public class QSPeripheral: Hashable {
                 UInt8((UInt32(led_amp) >> 0) & 0xFF),
                 UInt8((UInt16(multi_led) >> 8) & 0xFF),
                 UInt8((UInt16(multi_led) >> 0) & 0xFF),
-                UInt8(0),
-                UInt8(0),
+                UInt8(0xff),
+                UInt8(0xff),
                 UInt8(indicator_control),
                 UInt8(indicator_freq),
                 UInt8(indicator_duty_cycle)
@@ -538,15 +539,15 @@ public class QSPeripheral: Hashable {
                 let mode0State = OximeterV0CodableState()
                 mode0State.mode = "MODE 0"
                 mode0State.biomed_id = 0x01
-                mode0State.fifo_config = 0xff
-                mode0State.mode_config = 0xff
-                mode0State.spo2_config = 0xff
-                mode0State.led_amp = 0xffffff
-                mode0State.multi_led = 0xffff
+                mode0State.fifo_config = 0x57
+                mode0State.mode_config = 0x03
+                mode0State.spo2_config = 0x6b
+                mode0State.led_amp = 0x333300
+                mode0State.multi_led = 0x0000
                 // v0/1 2 bytes reserved
-                mode0State.indicator_control = 0xff
-                mode0State.indicator_freq = 0xff
-                mode0State.indicator_duty_cycle = 0xff
+                mode0State.indicator_control = 0x01
+                mode0State.indicator_freq = 100
+                mode0State.indicator_duty_cycle = 5
 
                 
                 projectState.ox_v0_modes[mode0State.mode!] = mode0State
