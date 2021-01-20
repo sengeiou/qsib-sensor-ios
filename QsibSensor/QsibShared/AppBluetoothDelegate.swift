@@ -326,8 +326,8 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             
             let signalPayloadBytes = 8 + (2 * 2 * 100)
             var data = Data(repeating: 0, count: signalPayloadBytes)
-            data[0] = UInt8(signalPayloadBytes)
-            data[1] = 0
+            data[0] = UInt8(signalPayloadBytes & 0xFF)
+            data[1] = UInt8((signalPayloadBytes >> 8) & 0xFF)
             data[2] = 2
             data[3] = (UInt8(2) << 4) | (UInt8(0))
             data[4] = UInt8(biomedCounter & 0xff)
