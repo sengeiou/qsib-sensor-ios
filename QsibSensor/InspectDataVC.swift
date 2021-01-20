@@ -300,7 +300,12 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 cell.detailTextLabel?.text = ""
             case 1:
                 cell.textLabel?.text = "Battery Level"
-                cell.detailTextLabel?.text = peripheral.batteryLevel == nil ? "??%" : "\(peripheral.batteryLevel!)%"
+                switch peripheral.projectMode ?? "" {
+                case OXIMETER_V0:
+                    cell.detailTextLabel?.text = peripheral.batteryLevel == nil ? "??%" : "\(peripheral.batteryLevel!)mV"
+                default:
+                    cell.detailTextLabel?.text = peripheral.batteryLevel == nil ? "??%" : "\(peripheral.batteryLevel!)%"
+                }
             case 2:
                 if let measurementState = self.peripheral?.activeMeasurement?.state {
                     switch measurementState {

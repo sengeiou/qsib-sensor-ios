@@ -308,7 +308,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             let counter = UInt8(value[0])
             let messageSize = Int(value[1])
             guard messageSize == 100 && value.count == 202 else {
-                LOGGER.error("Invalid BIOMED_CHAR4_UUID value. Expected payload of 202 bytes and 100 samples")
+                LOGGER.error("Invalid BIOMED_CHAR4_UUID value. Expected payload of 202 bytes and 50 total samples of each channel")
                 return
             }
             
@@ -324,7 +324,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             prevBiomedCounter = counter
             
             
-            let signalPayloadBytes = 8 + (2 * 2 * 100)
+            let signalPayloadBytes = 8 + (2 * 2 * 50)
             var data = Data(repeating: 0, count: signalPayloadBytes)
             data[0] = UInt8(signalPayloadBytes & 0xFF)
             data[1] = UInt8((signalPayloadBytes >> 8) & 0xFF)
