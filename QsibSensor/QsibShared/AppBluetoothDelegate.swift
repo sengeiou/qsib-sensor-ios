@@ -307,8 +307,8 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             
             let counter = UInt8(value[0])
             let messageSize = Int(value[1])
-            guard messageSize == 202 else {
-                LOGGER.error("Invalid BIOMED_CHAR4_UUID value. Expected payload of 202 bytes")
+            guard messageSize == 100 && value.count == 202 else {
+                LOGGER.error("Invalid BIOMED_CHAR4_UUID value. Expected payload of 202 bytes and 100 samples")
                 return
             }
             
