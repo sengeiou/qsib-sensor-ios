@@ -212,7 +212,7 @@ public class QSPeripheral: Hashable {
     }
     
     public func add(characteristic: CBCharacteristic) {
-        self.characteristics[UUID(uuidString: characteristic.uuid.uuidString)!] = characteristic
+        self.characteristics[characteristic.uuid.UUIDValue!] = characteristic
         self.ts = Date()
     }
     
@@ -252,7 +252,7 @@ public class QSPeripheral: Hashable {
     }
     
     private func writeDataToChar(cbuuid: CBUUID, data: Data) {
-        if let characteristic = self.characteristics[UUID(uuidString: cbuuid.uuidString)!] {
+        if let characteristic = self.characteristics[cbuuid.UUIDValue!] {
             self.cbp.writeValue(data, for: characteristic, type: .withResponse)
         } else {
             QSIB_ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Cannot update characteristic", duration: TimeInterval(2), position: .center, title: "Internal BLE Error", image: nil, style: ToastStyle(), completion: nil)))
@@ -298,7 +298,7 @@ public class QSPeripheral: Hashable {
         case SKIN_HYDRATION_SENSOR_V2:
             writeControl(data: Data([0x01, 0x00]))
         case OXIMETER_V0:
-            if let characteristic = self.characteristics[UUID(uuidString: BIOMED_CHAR2_UUID.uuidString)!] {
+            if let characteristic = self.characteristics[BIOMED_CHAR2_UUID.UUIDValue!] {
                 self.cbp.writeValue(Data([0x02]), for: characteristic, type: .withResponse)
             } else {
                 LOGGER.error("Failed to find BIOMED_CHAR2_UUID \(BIOMED_CHAR2_UUID)")

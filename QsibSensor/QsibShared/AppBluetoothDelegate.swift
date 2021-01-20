@@ -347,3 +347,16 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         }
     }
 }
+
+extension CBUUID {
+    var UUIDValue: UUID? {
+        get {
+            guard self.data.count == MemoryLayout<uuid_t>.size else { return nil }
+            return self.data.withUnsafeBytes {
+                (pointer: UnsafeRawBufferPointer) -> UUID in
+                let uuid = pointer.load(as: uuid_t.self)
+                return UUID(uuid: uuid)
+            }
+        }
+    }
+}
