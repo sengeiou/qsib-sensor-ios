@@ -310,7 +310,7 @@ public class QSPeripheral: Hashable {
     
     public func turnOff() {
         switch self.projectMode ?? "" {
-        case MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2:
+        case MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2, OXIMETER_V0:
             pause()
         case SHUNT_MONITOR_V1:
             let data = Data(repeating: 0xFF, count: 23)
