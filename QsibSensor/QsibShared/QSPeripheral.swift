@@ -320,7 +320,7 @@ public class QSPeripheral: Hashable {
         }
     }
     
-    /*!
+    /*! 
      * Write the control message for the PPG sensor.
      * At V2 the following packed struct is expected as the value
 
@@ -438,7 +438,7 @@ public class QSPeripheral: Hashable {
 //            LOGGER.error("Not enough info set to write control for \(OXIMETER_V0)")
 //        }
         
-        if let characteristic = self.characteristics[UUID(uuidString: BIOMED_CHAR2_UUID.uuidString)!] {
+        if let characteristic = self.characteristics[BIOMED_CHAR2_UUID.UUIDValue!] {
             self.cbp.writeValue(Data([0x01]), for: characteristic, type: .withResponse)
         } else {
             LOGGER.error("Failed to find BIOMED_CHAR2_UUID \(BIOMED_CHAR2_UUID)")

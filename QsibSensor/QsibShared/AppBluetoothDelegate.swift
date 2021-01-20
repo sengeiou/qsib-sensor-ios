@@ -300,7 +300,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         case BIOMED_CHAR4_UUID:
             LOGGER.trace("Updated BIOMED_CHAR4_UUID: \(BIOMED_CHAR4_UUID)")
             guard let value = characteristic.value else {
-                LOGGER.error("Invalid characteristic update for BIOMED_CHAR4_UUID: \(characteristic)")
+                LOGGER.warning("Invalid characteristic update for BIOMED_CHAR4_UUID: \(characteristic)")
                 return
             }
             LOGGER.trace("Updated BIOMED_CHAR4_UUID with \(value.hexEncodedString())")
