@@ -293,8 +293,8 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             }
             LOGGER.trace("Updated BIOMED_CHAR3_UUID with \(value.hexEncodedString())")
             
-            let lsbMv = Int(value[0])
-            let msbMv = Int(value[1])
+            let msbMv = Int(value[0])
+            let lsbMv = Int(value[1])
             let batteryMv = Int((msbMv << 8) + lsbMv) * 10
             QSIB_ACTION_DISPATCH(action: DidUpdateValueForBattery(peripheral: peripheral, batteryLevel: batteryMv))
         case BIOMED_CHAR4_UUID:
