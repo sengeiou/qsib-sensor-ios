@@ -8,6 +8,15 @@
 void qs_init();
 
 /*!
+ * Get a human readable string VERSION for this library
+ *
+ * A library owned C String w/ nul-terminator is returned
+ * with the expectation of the user calling the drop function.
+ */
+const char *qs_version_get();
+void qs_version_drop(const char *free_me_please);
+
+/*!
  * Routines that result in error conditions may queue
  * error messages to be explored by the user.
  *
@@ -44,9 +53,14 @@ bool qs_drop_measurement(uint32_t measurement_id);
 uint32_t qs_add_signals(uint32_t measurement_id, const uint8_t *buf, uint16_t len);
 
 /*!
+ * Populates timestamp and channel buffers with data. Data is downsampled over a window
+ * defined by trailing_s.
+ *
+ * The window may include all data and the downsampling parameters may include all data.
+ *
  * Using the input sampling rate, we infer using the
  * notification counters and known samples per payload
- * to compute the device side timestamp that is
+ * to compute the device-side timestamp that is
  * accurate relative to other signals produced by this sensor.
  *
  * Note this does not provide accuracy in delay incurred due to
@@ -62,28 +76,12 @@ uint32_t qs_add_signals(uint32_t measurement_id, const uint8_t *buf, uint16_t le
  * @param[in] downsample_seed The seed for a random number generator used to downsample data
  * @param[in] downsample_threshold The inclusive threshold to accept values after mod downsample_scale
  * @param[in] downsample_scale The mod to map random values into a continuous domain [0, scale]
- * @param[out] timestamps The buffer that will hold the result of interpreting the data
- * @param[in|out] num_timestamps The number of timestamps in the buffer. (Capacity before call, Actual number after)
+ * @param[in] trailing_s If > 0, constrains eligble data points to the final trailing_s seconds of the measurement
+ * @param[out] timestamp_data The buffer that will hold the result of interpreting the data
+ * @param[out] channel_data The 2D matrix of [channel][samples]. [samples] is parallel to timestamp_data.
+ * @param[in|out] num_total_samples (Capacity before call, Actual number after).
+ *                        The number of samples each channel has in the buffer. Same for timestamp_data
  *
  * @return success or failure
  */
-bool qs_interpret_timestamps(uint32_t measurement_id, float hz, float rate_scaler, uint64_t downsample_seed, uint32_t downsample_threshold, uint32_t downsample_scale, double *timestamps, uint32_t *num_timestamps);
-
-/*!
- * Places each channel's data in continguous buffers and updates the examct number of samples per channel.
- *
- * Error messages may be popped with the error
- * messaging API with a limit of 16 pending messages.
- *
- * Similarly thread-safe to measurement allocation.
- *
- * @param[in] downsample_seed The seed for a random number generator used to downsample data
- * @param[in] downsample_seed The seed for a random number generator used to downsample data
- * @param[in] downsample_threshold The inclusive threshold to accept values after mod downsample_scale
- * @param[in] downsample_scale The mod to map random values into a continuous domain [0, scale]
- * @param[in|out] num_samples_per_channel The number of samples that each channel has in the buffer. (Capacity before call, Actual number after)
- * @param[out] channel_data The 2D matrix of [channel][samples]
- *
- * @return success or failure
- */
-bool qs_copy_signals(uint32_t measurement_id, uint64_t downsample_seed, uint32_t downsample_threshold, uint32_t downsample_scale, double **channel_data, uint32_t *num_samples_per_channel);
+bool qs_export_signals(uint32_t measurement_id, float hz, float rate_scaler, uint64_t downsample_seed, uint32_t downsample_threshold, uint32_t downsample_scale, float trailing_s, double *timestamp_data, double **channel_data, uint32_t *num_total_samples);

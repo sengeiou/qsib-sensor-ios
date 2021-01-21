@@ -73,10 +73,17 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
     }
 }
 
+public enum GraphType {
+    case trailing
+    case downsampled
+}
+
 class InspectDataVC: UITableViewController, StoreSubscriber {
     
     var peripheral: QSPeripheral?
     var updateTs = Date()
+    var graphType = GraphType.trailing
+    var graphData: TimeSeriesData? = nil
     
     var cellHeights: [IndexPath: CGFloat] = [:]
     
@@ -109,11 +116,22 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             return
         }
         
-        guard Date().timeIntervalSince(updateTs) > 0.5 else {
+        
+        guard Date().timeIntervalSince(updateTs) > 0.5 || (graphData == nil && peripheral?.activeMeasurement != nil) else {
             return
         }
         updateTs = Date()
-
+        
+        if let activeMeasurement = peripheral?.activeMeasurement {
+            switch graphType {
+            case .trailing:
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 30)
+                LOGGER.trace("Graph data has \(graphData?.timestamps.count) timestamps")
+            case .downsampled:
+                graphData = activeMeasurement.getDownsampledData()
+            }
+        }
+        
         DispatchQueue.main.async {
             self.tableView.reloadData()
         }
@@ -392,27 +410,27 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 return cell
             } else {
                 let cell = tableView.dequeueReusableCell(withIdentifier: "channelcell0", for: indexPath) as! ChannelCell
-                guard let activeMeasurement = self.peripheral?.activeMeasurement else {
+                guard let data = self.graphData else {
                     cell.chartView.data = nil
                     return cell
                 }
                 
                 let channelSection = indexPath.section - 1 - (isConfigged ? 1 : 0)
                 
-                if channelSection > activeMeasurement.channels {
+                if channelSection > data.channels.count {
                     LOGGER.error("Cannot populate data for channel that the active measurement is not configured to have")
                     fatalError("Cannot populate data for channel that the active measurement is not configured to have")
                 }
                 
-                let (graphableTimestamps, graphableChannels) = activeMeasurement.getGraphables()
-                if graphableTimestamps.count == 0 || graphableChannels.count == 0 {
+                
+                if data.timestamps.count == 0 || data.channels.count == 0 || data.channels[0].count == 0 {
                     // This can happen when new payloads make it so that the buffer for data to export for graphing are too small
                     LOGGER.warning("No data to graph for \(channelSection)")
                     return cell
                 }
 
-                cell.timestamps = graphableTimestamps
-                cell.channel = graphableChannels[channelSection]
+                cell.timestamps = data.timestamps
+                cell.channel = data.channels[channelSection]
                 LOGGER.trace("Updating channel \(channelSection) with [\(cell.timestamps.count), \(cell.channel.count)] values")
                 cell.dataLabel = "SAADC Samples (mV)"
                 cell.colorIndex = indexPath.section
