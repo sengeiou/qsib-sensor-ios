@@ -301,7 +301,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 editorVC.headerLabelText = "Graph Type"
                 editorVC.options = ["Trailing 5s", "Trailing 15s", "Trailing 30s", "Trailing 60s", "Trailing 120s", "Downsample from all"]
                 editorVC.proposedValue = 3
-                editorVC.confirmedValue = 3
+                editorVC.confirmedValue = nil
                 editorVC.predicate = { (i) in return true }
                 editorVC.actionFactory = { selectedIndex in
                     switch selectedIndex {
