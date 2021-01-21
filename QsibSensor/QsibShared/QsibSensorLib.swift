@@ -439,7 +439,7 @@ class QSMeasurement {
         // TODO: guard with mutex because only sensor lib is thread safe, UI vars are not this might get called several times concurrently
         let activeSet = dataSets.last! as! RamDataSet
         let result = activeSet.addPayload(data: data)
-        let maxSamples = 1000000
+        let maxSamples = 100000
         if activeSet.sampleCount > maxSamples {
             LOGGER.info("Detected ongoing measurement with active set surpassing \(maxSamples) samples")
             startNewDataSet(hz: activeSet.params.hz, scaler: activeSet.params.scaler)
