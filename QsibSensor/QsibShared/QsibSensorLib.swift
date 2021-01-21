@@ -141,11 +141,16 @@ public class RamDataSet: DataSetProtocol {
     }
     
     public func getTrailingData(secondsInTrailingWindow: Float) -> TimeSeriesData {
-        return getData(targetCardinality: nil, secondsInTrailingWindow: secondsInTrailingWindow)
+        // target cardinality is blanket across all payloads.
+        // trailing window / total measurement is percent of payloads that may be downsampled
+        // sampling 500 from that portion requires higher target cardinality
+        let secondsInMeasurement = Float(max(sampleCount, 1)) / (params.hz * params.scaler)
+        let targetCardinality = UInt64(500.0 / (max(secondsInTrailingWindow, 1.0) / max(secondsInMeasurement, 1.0)))
+        return getData(targetCardinality: max(500, targetCardinality), secondsInTrailingWindow: secondsInTrailingWindow)
     }
 
     public func getDownsampledData() -> TimeSeriesData {
-        return getData(targetCardinality: 1000)
+        return getData(targetCardinality: 500)
     }
     
     public func getAllData() -> TimeSeriesData {
@@ -393,7 +398,7 @@ class QSMeasurement {
         self.state = .initial
         self.channels = signalChannels
         self.holdInRam = holdInRam
-        self.downsampled = (-1, TimeSeriesData([], [], true))
+        self.downsampled = (-1, TimeSeriesData([], Array(repeating: [], count: Int(signalChannels)), true))
     }
     
     public func id() -> UUID {

@@ -130,6 +130,12 @@ public struct UpdateProjectMode: Action {
     let projectMode: String
 }
 
+public struct UpdateProjectDefaultMode: Action {
+    let peripheral: CBPeripheral
+    let projectMode: String
+    let defaultMode: String
+}
+
 public struct UpdateSignalChannels: Action {
     let peripheral: CBPeripheral
     let channels: Int
@@ -308,6 +314,12 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
             fatalError("Not setting or checking project defaults for \(String(describing: peripheral.projectMode))")
         }
         save(&state, peripheral)
+    case let action as UpdateProjectDefaultMode:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.projectMode = action.projectMode
+        let projectState = peripheral.getOrDefaultProject()
+        projectState.defaultMode = action.defaultMode
+        save(&state, peripheral)
     case let action as UpdateSignalHz:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.signalHz = action.hz
@@ -442,6 +454,7 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         let hz = modeInfo.effective_sample_hz!
         peripheral.activeMeasurement?.startNewDataSet(hz: hz)
     case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
+        let _ = peripheral.getOrDefaultProject()
         if let hz = peripheral.signalHz {
             peripheral.activeMeasurement?.startNewDataSet(hz: Float(hz))
         } else {

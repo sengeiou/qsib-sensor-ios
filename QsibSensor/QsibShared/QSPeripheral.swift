@@ -32,6 +32,9 @@ public class ShuntMonitorV1CodableState: Codable {
 
 public class SkinHydrationV2CodableState: Codable {
     var mode: String?
+    var minCalibratingTemp: Float32?
+    var maxTemp: Float32?
+    var maxTempDiff: Float32?
 }
 
 public class OximeterV0CodableState: Codable {
@@ -398,8 +401,25 @@ public class QSPeripheral: Hashable {
     }
     
     public func writeProjectControlForSkinHydrationV2() {
-        let data = Data([0x02, 0x01])
-        writeControl(data: data)
+        if let mode = projects[SKIN_HYDRATION_SENSOR_V2]?.defaultMode,
+           let modeInfo = projects[SKIN_HYDRATION_SENSOR_V2]?.shs_v2_modes[mode],
+           let tightMinCalibratingTemp = modeInfo.minCalibratingTemp,
+           let tightMaxTemp = modeInfo.maxTemp,
+           let tightMaxTempDiff = modeInfo.maxTempDiff {
+
+
+            var data = Data([
+                0x02, 0x01
+            ])
+
+            data += tightMinCalibratingTemp.bytes
+            data += tightMaxTemp.bytes
+            data += tightMaxTempDiff.bytes
+
+            LOGGER.trace("Writing control message for \(SKIN_HYDRATION_SENSOR_V2) :: \(data.hexEncodedString())")
+
+            writeControl(data: data)
+        }
     }
     
     public func writeProjectControlForOximeterV0() {
@@ -528,13 +548,22 @@ public class QSPeripheral: Hashable {
         case SKIN_HYDRATION_SENSOR_V2:
             if projects[SKIN_HYDRATION_SENSOR_V2] == nil {
                 let projectState = ProjectCodableState()
-                projectState.defaultMode = "MODE 0"
-                
-                let mode0State = SkinHydrationV2CodableState()
-                mode0State.mode = "MODE 0"
-                
-                projectState.shs_v2_modes[mode0State.mode!] = mode0State
-                
+                projectState.defaultMode = "STRICT"
+
+                let strictState = SkinHydrationV2CodableState()
+                strictState.mode = "STRICT"
+                strictState.minCalibratingTemp = 30
+                strictState.maxTemp = 80
+                strictState.maxTempDiff = 24
+                projectState.shs_v2_modes[strictState.mode!] = strictState
+
+                let notStrictState = SkinHydrationV2CodableState()
+                notStrictState.mode = "NOT STRICT"
+                notStrictState.minCalibratingTemp = 20
+                notStrictState.maxTemp = 80
+                notStrictState.maxTempDiff = 24
+                projectState.shs_v2_modes[notStrictState.mode!] = notStrictState
+            
                 projects[SKIN_HYDRATION_SENSOR_V2] = projectState
             }
             

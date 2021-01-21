@@ -13,8 +13,6 @@ import Charts
 
 class ControlCell: UITableViewCell {
 
-    
-    
 }
 
 class ChannelCell: UITableViewCell, ChartViewDelegate {
@@ -74,15 +72,19 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
 }
 
 public enum GraphType {
-    case trailing
+    case trailing_5
+    case trailing_15
+    case trailing_30
+    case trailing_60
+    case trailing_120
     case downsampled
 }
 
 class InspectDataVC: UITableViewController, StoreSubscriber {
     
     var peripheral: QSPeripheral?
-    var updateTs = Date()
-    var graphType = GraphType.trailing
+    var updateTs: Date? = nil
+    var graphType = GraphType.trailing_60
     var graphData: TimeSeriesData? = nil
     
     var cellHeights: [IndexPath: CGFloat] = [:]
@@ -116,20 +118,27 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             return
         }
         
-        
-        guard Date().timeIntervalSince(updateTs) > 0.5 || (graphData == nil && peripheral?.activeMeasurement != nil) else {
+        guard updateTs == nil || Date().timeIntervalSince(updateTs!) > 0.5 || (graphData == nil && peripheral?.activeMeasurement != nil) else {
             return
         }
         updateTs = Date()
         
         if let activeMeasurement = peripheral?.activeMeasurement {
             switch graphType {
-            case .trailing:
+            case .trailing_5:
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 5)
+            case .trailing_15:
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 15)
+            case .trailing_30:
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 30)
-                LOGGER.trace("Graph data has \(graphData?.timestamps.count) timestamps")
+            case .trailing_60:
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 60)
+            case .trailing_120:
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 120)
             case .downsampled:
                 graphData = activeMeasurement.getDownsampledData()
             }
+            LOGGER.trace("Graph \(graphType) data has \(String(describing: graphData?.timestamps.count)) timestamps")
         }
         
         DispatchQueue.main.async {
@@ -144,7 +153,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
         case 0:
-            return 5
+            return 6
         default:
             if isProjectConfigged() && section == 1 {
                 switch self.peripheral?.projectMode ?? "" {
@@ -249,7 +258,11 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 }
             case 4:
                 LOGGER.debug("Selected save and export measurement ...")
-                if let measurement = peripheral.activeMeasurement {
+                var measurement = peripheral.activeMeasurement
+                if measurement == nil {
+                    measurement = peripheral.finalizedMeasurements.last
+                }
+                if let measurement = measurement {
                     LOGGER.debug("Pausing for export from \(measurement.state)")
                     
                     // Pause
@@ -282,6 +295,36 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 } else {
                     LOGGER.debug("Ignoring selection without active measurement on \(indexPath)")
                 }
+            case 5:
+                let storyboard = UIStoryboard(name: "Main", bundle: nil)
+                let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
+                editorVC.headerLabelText = "Graph Type"
+                editorVC.options = ["Trailing 5s", "Trailing 15s", "Trailing 30s", "Trailing 60s", "Trailing 120s", "Downsample from all"]
+                editorVC.proposedValue = 3
+                editorVC.confirmedValue = 3
+                editorVC.predicate = { (i) in return true }
+                editorVC.actionFactory = { selectedIndex in
+                    switch selectedIndex {
+                    case 0:
+                        self.graphType = .trailing_5
+                    case 1:
+                        self.graphType = .trailing_15
+                    case 2:
+                        self.graphType = .trailing_30
+                    case 3:
+                        self.graphType = .trailing_60
+                    case 4:
+                        self.graphType = .trailing_120
+                    case 5:
+                        self.graphType = .downsampled
+                    default:
+                        fatalError("Unexpected graph type selection: \(selectedIndex)")
+                    }
+                    self.updateTs = nil
+                    
+                    return Tick()
+                }
+                self.present(editorVC, animated: true)
             default:
                 LOGGER.debug("Unhandled selection on first section at \(indexPath)")
                 break
@@ -350,7 +393,11 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 cell.textLabel?.text = "End"
                 cell.detailTextLabel?.text = nil
             case 4:
-                if let dataSets =  self.peripheral?.activeMeasurement?.dataSets,
+                var measurement = peripheral.activeMeasurement
+                if measurement == nil {
+                    measurement = peripheral.finalizedMeasurements.last
+                }
+                if let dataSets =  measurement?.dataSets,
                    let activeSet = dataSets.last! as? RamDataSet {
                     // Assume 3x compression across all datasets in the final archive
                     // Active RAM usage is limited to the active data set size
@@ -361,6 +408,22 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 }
                 
                 cell.textLabel?.text = "Pause, Save, Export"
+            case 5:
+                cell.textLabel?.text = "Graph Type"
+                switch graphType {
+                case .trailing_5:
+                    cell.detailTextLabel?.text = "Trailing 5s"
+                case .trailing_15:
+                    cell.detailTextLabel?.text = "Trailing 15s"
+                case .trailing_30:
+                    cell.detailTextLabel?.text = "Trailing 30s"
+                case .trailing_60:
+                    cell.detailTextLabel?.text = "Trailing 60s"
+                case .trailing_120:
+                    cell.detailTextLabel?.text = "Trailing 120s"
+                case .downsampled:
+                    cell.detailTextLabel?.text = "Downsample from All"
+                }
             default:
                 break
             }
@@ -416,16 +479,9 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 }
                 
                 let channelSection = indexPath.section - 1 - (isConfigged ? 1 : 0)
-                
-                if channelSection > data.channels.count {
-                    LOGGER.error("Cannot populate data for channel that the active measurement is not configured to have")
-                    fatalError("Cannot populate data for channel that the active measurement is not configured to have")
-                }
-                
-                
-                if data.timestamps.count == 0 || data.channels.count == 0 || data.channels[0].count == 0 {
+                if data.timestamps.count == 0 || data.channels.count == 0 || data.channels[0].count == 0 || channelSection >= data.channels.count {
                     // This can happen when new payloads make it so that the buffer for data to export for graphing are too small
-                    LOGGER.warning("No data to graph for \(channelSection)")
+                    LOGGER.debug("No data to graph for \(channelSection): \(data.timestamps.count), \(data.channels.count) \(channelSection)")
                     return cell
                 }
 
