@@ -315,6 +315,9 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             if let prevCounter = prevBiomedCounter {
                 if prevCounter > 245 && counter < 10 {
                     biomedCounter += UInt64((255 - prevCounter) + counter)
+                } else if Int(counter) - Int(prevCounter) < 0 {
+                    // Handle missing > 20 payloads by resetting counter
+                    biomedCounter = UInt64(counter)
                 } else {
                     biomedCounter += UInt64(counter - prevCounter)
                 }
