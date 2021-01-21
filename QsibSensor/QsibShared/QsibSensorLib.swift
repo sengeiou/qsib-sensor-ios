@@ -409,7 +409,7 @@ class QSMeasurement {
         // TODO: guard with mutex because only sensor lib is thread safe, UI vars are not this might get called several times concurrently
         let activeSet = dataSets.last! as! RamDataSet
         let result = activeSet.addPayload(data: data)
-        let maxSamples = 100000
+        let maxSamples = 1000000
         if activeSet.sampleCount > maxSamples {
             LOGGER.info("Detected ongoing measurement with active set surpassing \(maxSamples) samples")
             startNewDataSet(hz: activeSet.params.hz, scaler: activeSet.params.scaler)
@@ -460,10 +460,27 @@ class QSMeasurement {
         return url
     }
     
+    public func getAllData() -> TimeSeriesData {
+        let resultingData = TimeSeriesData([], Array(repeating: [], count: Int(self.channels)), true)
+        for dataSet in dataSets {
+            let data = dataSet.getAllData()
+            if let ramDataSet = dataSet as? RamDataSet {
+                data.shift(ramDataSet.timestampOffset)
+            }
+            resultingData.timestamps.append(contentsOf: data.timestamps)
+            for i in 0..<resultingData.channels.count {
+                resultingData.channels[i].append(contentsOf: data.channels[i])
+            }
+        }
+        return resultingData
+    }
+    
     public func getTrailingData(secondsInTrailingWindow: Float) -> TimeSeriesData {
         if let dataSet = dataSets.last {
             if let ramDataSet = dataSet as? RamDataSet {
-                return ramDataSet.getTrailingData(secondsInTrailingWindow: secondsInTrailingWindow)
+                let data = ramDataSet.getTrailingData(secondsInTrailingWindow: secondsInTrailingWindow)
+                data.shift(ramDataSet.timestampOffset)
+                return data
             }
         }
         
