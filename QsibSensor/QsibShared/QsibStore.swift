@@ -401,6 +401,8 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         peripheral.turnOff()
     case let action as IssueControlWriteFor:
         let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.pause()
+        peripheral.start()
         startNewDataSet(for: peripheral)
     case let action as SetScan:
         state.ble!.setScan(doScan: action.doScan)
