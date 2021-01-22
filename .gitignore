@@ -1,4 +1,4 @@
 .build
 *.dSYM.zip
 *.ipa
-QsibSensor.xcodeproj/xcuserdata
+QsibSensor.xcodeproj/xcuserdata/**

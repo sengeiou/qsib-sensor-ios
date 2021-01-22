@@ -762,6 +762,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.actionFactory = { inputString in
                 LOGGER.debug("Input \(inputString) for \(indexPath)")
                 project.ox_v0_modes[project.defaultMode!]!.fifo_config = Int(inputString, radix: 16)!
+                project.ox_v0_modes[project.defaultMode!]! = peripheral.updateModeStateForOximeterV0(modeState: project.ox_v0_modes[project.defaultMode!]!)
                 peripheral.save()
                 return QsibTick()
             }
@@ -777,6 +778,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.actionFactory = { inputString in
                 LOGGER.debug("Input \(inputString) for \(indexPath)")
                 project.ox_v0_modes[project.defaultMode!]!.mode_config = Int(inputString, radix: 16)!
+                project.ox_v0_modes[project.defaultMode!]! = peripheral.updateModeStateForOximeterV0(modeState: project.ox_v0_modes[project.defaultMode!]!)
                 peripheral.save()
                 return QsibTick()
             }
@@ -792,6 +794,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.actionFactory = { inputString in
                 LOGGER.debug("Input \(inputString) for \(indexPath)")
                 project.ox_v0_modes[project.defaultMode!]!.spo2_config = Int(inputString, radix: 16)!
+                project.ox_v0_modes[project.defaultMode!]! = peripheral.updateModeStateForOximeterV0(modeState: project.ox_v0_modes[project.defaultMode!]!)
                 peripheral.save()
                 return QsibTick()
             }
@@ -807,6 +810,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.actionFactory = { inputString in
                 LOGGER.debug("Input \(inputString) for \(indexPath)")
                 project.ox_v0_modes[project.defaultMode!]!.led_amp = Int(inputString, radix: 16)!
+                project.ox_v0_modes[project.defaultMode!]! = peripheral.updateModeStateForOximeterV0(modeState: project.ox_v0_modes[project.defaultMode!]!)
                 peripheral.save()
                 return QsibTick()
             }
@@ -822,6 +826,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             editorVC.actionFactory = { inputString in
                 LOGGER.debug("Input \(inputString) for \(indexPath)")
                 project.ox_v0_modes[project.defaultMode!]!.multi_led = Int(inputString, radix: 16)!
+                project.ox_v0_modes[project.defaultMode!]! = peripheral.updateModeStateForOximeterV0(modeState: project.ox_v0_modes[project.defaultMode!]!)
                 peripheral.save()
                 return QsibTick()
             }
