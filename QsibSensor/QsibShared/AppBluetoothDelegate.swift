@@ -278,6 +278,7 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
                 return
             }
             LOGGER.trace("Updated BIOMED_CHAR1_UUID with \(value.hexEncodedString())")
+            QSIB_ACTION_DISPATCH(action: DidUpdateValueForBiomedChar1(peripheral: peripheral, data: value))
         case BIOMED_CHAR2_UUID:
             LOGGER.trace("Updated BIOMED_CHAR2_UUID: \(BIOMED_CHAR2_UUID)")
             guard let value = characteristic.value else {

@@ -50,6 +50,11 @@ public struct DidDiscoverCharacteristic: Action {
     let characteristic: CBCharacteristic
 }
 
+public struct DidUpdateValueForBiomedChar1: Action {
+    let peripheral: CBPeripheral
+    let data: Data
+}
+
 public struct DidUpdateValueForBattery: Action {
     let peripheral: CBPeripheral
     let batteryLevel: Int
@@ -206,6 +211,24 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         QSIB_ACTION_DISPATCH(action: StopMeasurement(peripheral: action.peripheral))
     case let action as DidFailToConnect:
         let _ = getPeripheral(&state, action.peripheral)
+    case let action as DidUpdateValueForBiomedChar1:
+        // Override mode info on biomedchar1 remote configs always
+        let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.projectMode = OXIMETER_V0
+        let state = peripheral.getOrDefaultProject()
+        if action.data.count < 10 {
+            break
+        }
+        let data = action.data
+        let modeInfo = state.ox_v0_modes[state.defaultMode!]!
+        modeInfo.biomed_id = Int(data[1])
+        modeInfo.fifo_config = Int(data[2])
+        modeInfo.mode_config = Int(data[3])
+        modeInfo.spo2_config = Int(data[4])
+        modeInfo.led_amp = Int((UInt32(data[5]) << 16) | (UInt32(data[6]) << 8) | UInt32(data[7]))
+        modeInfo.multi_led = Int((UInt16(data[8]) << 8) | UInt16(data[9]))
+        state.ox_v0_modes[state.defaultMode!] = modeInfo
+        peripheral.save()
     case let action as DidUpdateValueForBattery:
         let peripheral = getPeripheral(&state, action.peripheral)
         LOGGER.trace("\(peripheral.name()) has battery level \(action.batteryLevel)")

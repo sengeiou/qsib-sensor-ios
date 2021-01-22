@@ -34,6 +34,7 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
     var channel: [Double]! = nil
     var dataLabel: String! = nil
     var colorIndex: Int! = nil
+    var lineWidth: Int = 0
     
     func updateChartView() {
         self.chartView.xAxis.removeAllLimitLines()
@@ -48,7 +49,7 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
             dataSet.mode = LineChartDataSet.Mode.linear
             dataSet.axisDependency = .left
             dataSet.setColor(color)
-            dataSet.lineWidth = 0
+            dataSet.lineWidth = CGFloat(lineWidth)
             dataSet.circleRadius = 2
             dataSet.setCircleColor(color)
             dataSets.append(dataSet)
@@ -78,6 +79,13 @@ public enum GraphType {
     case trailing_60
     case trailing_120
     case downsampled
+    case with_lines_trailing_5
+    case with_lines_trailing_15
+    case with_lines_trailing_30
+    case with_lines_trailing_60
+    case with_lines_trailing_120
+    case with_lines_downsampled
+
 }
 
 class InspectDataVC: UITableViewController, StoreSubscriber {
@@ -86,6 +94,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     var updateTs: Date? = nil
     var graphType = GraphType.trailing_60
     var graphData: TimeSeriesData? = nil
+    var lineWidth: Int = 0
     
     var cellHeights: [IndexPath: CGFloat] = [:]
     
@@ -126,17 +135,42 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
         if let activeMeasurement = peripheral?.activeMeasurement {
             switch graphType {
             case .trailing_5:
+                lineWidth = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 5)
             case .trailing_15:
+                lineWidth = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 15)
             case .trailing_30:
+                lineWidth = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 30)
             case .trailing_60:
+                lineWidth = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 60)
             case .trailing_120:
+                lineWidth = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 120)
             case .downsampled:
+                lineWidth = 0
                 graphData = activeMeasurement.getDownsampledData()
+            case .with_lines_trailing_5:
+                lineWidth = 1
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 5)
+            case .with_lines_trailing_15:
+                lineWidth = 1
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 15)
+            case .with_lines_trailing_30:
+                lineWidth = 1
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 30)
+            case .with_lines_trailing_60:
+                lineWidth = 1
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 60)
+            case .with_lines_trailing_120:
+                lineWidth = 1
+                graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 120)
+            case .with_lines_downsampled:
+                lineWidth = 1
+                graphData = activeMeasurement.getDownsampledData()
+
             }
             LOGGER.trace("Graph \(graphType) data has \(String(describing: graphData?.timestamps.count)) timestamps")
         }
@@ -147,7 +181,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     }
     
     func isProjectConfigged() -> Bool {
-        return [MWV_PPG_V2].contains(self.peripheral?.projectMode)
+        return [MWV_PPG_V2, OXIMETER_V0].contains(self.peripheral?.projectMode)
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -169,6 +203,17 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     //     case 6: break // Apply
                     // }
                     return 7
+                case OXIMETER_V0:
+                    // switch indexPath.row {
+                    //     case 0: break // Mode
+                    //     case 1: break // fifo_config
+                    //     case 2: break // mode_config
+                    //     case 3: break // spo2_config
+                    //     case 4: break // led_amp
+                    //     case 5: break // multi_led
+                    //     case 6: break // Apply
+                    // }
+                    return 7
                 default:
                     return 1
                 }
@@ -181,7 +226,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     override func numberOfSections(in tableView: UITableView) -> Int {
         let baseSections = 1 + (self.peripheral?.signalChannels ?? 0)
         switch self.peripheral?.projectMode ?? "" {
-        case MWV_PPG_V2:
+        case MWV_PPG_V2, OXIMETER_V0:
             // Add 1 section for configuration of measurement
             return baseSections + 1
         default:
@@ -206,6 +251,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 switch self.peripheral?.projectMode ?? "" {
                 case MWV_PPG_V2:
                     return "\(MWV_PPG_V2) Config"
+                case OXIMETER_V0:
+                    return "\(OXIMETER_V0) Config"
                 default:
                     return "Channel \(section - 1)"
                 }
@@ -299,7 +346,10 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 let storyboard = UIStoryboard(name: "Main", bundle: nil)
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
                 editorVC.headerLabelText = "Graph Type"
-                editorVC.options = ["Trailing 5s", "Trailing 15s", "Trailing 30s", "Trailing 60s", "Trailing 120s", "Downsample from all"]
+                editorVC.options = [
+                    "Trailing 5s", "Trailing 15s", "Trailing 30s", "Trailing 60s", "Trailing 120s", "Downsample all",
+                    "Trailing 5s with lines", "Trailing 15s with lines", "Trailing 30s with lines", "Trailing 60s with lines", "Trailing 120s with lines", "Downsample all with lines"
+                ]
                 editorVC.proposedValue = 3
                 editorVC.confirmedValue = nil
                 editorVC.predicate = { (i) in return true }
@@ -317,6 +367,18 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                         self.graphType = .trailing_120
                     case 5:
                         self.graphType = .downsampled
+                    case 6:
+                        self.graphType = .with_lines_trailing_5
+                    case 7:
+                        self.graphType = .with_lines_trailing_15
+                    case 8:
+                        self.graphType = .with_lines_trailing_30
+                    case 9:
+                        self.graphType = .with_lines_trailing_60
+                    case 10:
+                        self.graphType = .with_lines_trailing_120
+                    case 11:
+                        self.graphType = .with_lines_downsampled
                     default:
                         fatalError("Unexpected graph type selection: \(selectedIndex)")
                     }
@@ -334,6 +396,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 switch self.peripheral?.projectMode ?? "" {
                 case MWV_PPG_V2:
                     handleSelectOnPpg(peripheral, indexPath)
+                case OXIMETER_V0:
+                    handleSelectOnOximeterV0(peripheral, indexPath)
                 default:
                     LOGGER.error("Unhandled selection at \(indexPath)")
                 }
@@ -422,7 +486,19 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 case .trailing_120:
                     cell.detailTextLabel?.text = "Trailing 120s"
                 case .downsampled:
-                    cell.detailTextLabel?.text = "Downsample from All"
+                    cell.detailTextLabel?.text = "Downsample all"
+                case .with_lines_trailing_5:
+                    cell.detailTextLabel?.text = "Trailing 5s with lines"
+                case .with_lines_trailing_15:
+                    cell.detailTextLabel?.text = "Trailing 15s with lines"
+                case .with_lines_trailing_30:
+                    cell.detailTextLabel?.text = "Trailing 30s with lines"
+                case .with_lines_trailing_60:
+                    cell.detailTextLabel?.text = "Trailing 60s with lines"
+                case .with_lines_trailing_120:
+                    cell.detailTextLabel?.text = "Trailing 120s with lines"
+                case .with_lines_downsampled:
+                    cell.detailTextLabel?.text = "Downsample all with lines"
                 }
             default:
                 break
@@ -467,6 +543,36 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                         LOGGER.error("Unhandled row")
                         break
                     }
+                case OXIMETER_V0:
+                    let project = peripheral.getOrDefaultProject()
+                    let opMode = project.ox_v0_modes[project.defaultMode!]!
+                    switch indexPath.row {
+                    case 0: // Mode
+                        cell.textLabel?.text = "Mode"
+                        cell.detailTextLabel?.text = opMode.mode ?? "---"
+                    case 1:
+                        cell.textLabel?.text = "Fifo Config"
+                        cell.detailTextLabel?.text = String(format:"%02X", opMode.fifo_config!)
+                    case 2:
+                        cell.textLabel?.text = "Mode Config"
+                        cell.detailTextLabel?.text = String(format:"%02X", opMode.mode_config!)
+                    case 3:
+                        cell.textLabel?.text = "SpO2 Config"
+                        cell.detailTextLabel?.text = String(format:"%02X", opMode.spo2_config!)
+                    case 4:
+                        cell.textLabel?.text = "LED Amp"
+                        cell.detailTextLabel?.text = String(format:"%06X", opMode.led_amp!)
+                    case 5:
+                        cell.textLabel?.text = "Multi LED"
+                        cell.detailTextLabel?.text = String(format:"%04X", opMode.multi_led!)
+                    case 6:
+                        cell.textLabel?.text = "Apply"
+                        cell.detailTextLabel?.text = ""
+                    default:
+                        LOGGER.error("Unhandled row")
+                        break
+                    }
+
                 default:
                     LOGGER.error("Unhandled section")
                 }
@@ -485,6 +591,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                     return cell
                 }
 
+                cell.lineWidth = lineWidth
                 cell.timestamps = data.timestamps
                 cell.channel = data.channels[channelSection]
                 LOGGER.trace("Updating channel \(channelSection) with [\(cell.timestamps.count), \(cell.channel.count)] values")
@@ -630,9 +737,104 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             }
             LOGGER.debug("Selected apply project mode on \(mode)")
             QSIB_ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: mode))
-
         default:
             LOGGER.error("Unhandled row selection for \(MWV_PPG_V2) on \(indexPath)")
+        }
+    }
+    
+    private func handleSelectOnOximeterV0(_ peripheral: QSPeripheral, _ indexPath: IndexPath) {
+        LOGGER.trace("Handling select on \(indexPath) for oximeter")
+        
+        let project = peripheral.getOrDefaultProject()
+        
+        switch indexPath.row {
+        case 0:
+            // nop. 1 mode only
+            break
+        case 1:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "textAttributeEditorVC") as! textAttributeEditorVC
+            editorVC.headerLabelText = "Fifo Config"
+            editorVC.placeholderValue = "00"
+            editorVC.confirmedValue = ""
+            editorVC.proposedValue = ""
+            editorVC.predicate = { $0.range(of: "^([0-9a-fA-f]{2})+?$", options: .regularExpression) != nil }
+            editorVC.actionFactory = { inputString in
+                LOGGER.debug("Input \(inputString) for \(indexPath)")
+                project.ox_v0_modes[project.defaultMode!]!.fifo_config = Int(inputString, radix: 16)!
+                peripheral.save()
+                return QsibTick()
+            }
+            self.present(editorVC, animated: true)
+        case 2:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "textAttributeEditorVC") as! textAttributeEditorVC
+            editorVC.headerLabelText = "Mode Config"
+            editorVC.placeholderValue = "00"
+            editorVC.confirmedValue = ""
+            editorVC.proposedValue = ""
+            editorVC.predicate = { $0.range(of: "^[0-9a-fA-f]{2}$", options: .regularExpression) != nil }
+            editorVC.actionFactory = { inputString in
+                LOGGER.debug("Input \(inputString) for \(indexPath)")
+                project.ox_v0_modes[project.defaultMode!]!.mode_config = Int(inputString, radix: 16)!
+                peripheral.save()
+                return QsibTick()
+            }
+            self.present(editorVC, animated: true)
+        case 3:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "textAttributeEditorVC") as! textAttributeEditorVC
+            editorVC.headerLabelText = "SpO2 Config"
+            editorVC.placeholderValue = "00"
+            editorVC.confirmedValue = ""
+            editorVC.proposedValue = ""
+            editorVC.predicate = { $0.range(of: "^[0-9a-fA-f]{2}$", options: .regularExpression) != nil }
+            editorVC.actionFactory = { inputString in
+                LOGGER.debug("Input \(inputString) for \(indexPath)")
+                project.ox_v0_modes[project.defaultMode!]!.spo2_config = Int(inputString, radix: 16)!
+                peripheral.save()
+                return QsibTick()
+            }
+            self.present(editorVC, animated: true)
+        case 4:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "textAttributeEditorVC") as! textAttributeEditorVC
+            editorVC.headerLabelText = "LED Amp"
+            editorVC.placeholderValue = "000000"
+            editorVC.confirmedValue = ""
+            editorVC.proposedValue = ""
+            editorVC.predicate = { $0.range(of: "^[0-9a-fA-f]{6}$", options: .regularExpression) != nil }
+            editorVC.actionFactory = { inputString in
+                LOGGER.debug("Input \(inputString) for \(indexPath)")
+                project.ox_v0_modes[project.defaultMode!]!.led_amp = Int(inputString, radix: 16)!
+                peripheral.save()
+                return QsibTick()
+            }
+            self.present(editorVC, animated: true)
+        case 5:
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let editorVC = storyboard.instantiateViewController(identifier: "textAttributeEditorVC") as! textAttributeEditorVC
+            editorVC.headerLabelText = "Multi LED"
+            editorVC.placeholderValue = "0000"
+            editorVC.confirmedValue = ""
+            editorVC.proposedValue = ""
+            editorVC.predicate = { $0.range(of: "^[0-9a-fA-f]{4}$", options: .regularExpression) != nil }
+            editorVC.actionFactory = { inputString in
+                LOGGER.debug("Input \(inputString) for \(indexPath)")
+                project.ox_v0_modes[project.defaultMode!]!.multi_led = Int(inputString, radix: 16)!
+                peripheral.save()
+                return QsibTick()
+            }
+            self.present(editorVC, animated: true)
+        case 6:
+            guard let mode = peripheral.projectMode else {
+                LOGGER.error("Cannot apply alteration to unknown project mode")
+                return
+            }
+            LOGGER.debug("Selected apply project mode on \(mode)")
+            QSIB_ACTION_DISPATCH(action: IssueControlWriteFor(peripheral: peripheral.cbp, projectMode: mode))
+        default:
+            LOGGER.error("Unhandled row selection for \(OXIMETER_V0) on \(indexPath)")
         }
     }
 }
