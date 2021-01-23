@@ -562,4 +562,14 @@ public class QsibSensorLib {
         }
         return nil
     }
+    
+    public func getVersion() -> String? {
+        let result = qs_version_get();
+        if result != nil {
+            let string = String(cString: result!)
+            qs_version_drop(result)
+            return string
+        }
+        return nil
+    }  
 }
