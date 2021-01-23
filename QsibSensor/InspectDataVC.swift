@@ -35,6 +35,7 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
     var dataLabel: String! = nil
     var colorIndex: Int! = nil
     var lineWidth: Int = 0
+    var circleRadius: Int = 2
     
     func updateChartView() {
         self.chartView.xAxis.removeAllLimitLines()
@@ -50,7 +51,7 @@ class ChannelCell: UITableViewCell, ChartViewDelegate {
             dataSet.axisDependency = .left
             dataSet.setColor(color)
             dataSet.lineWidth = CGFloat(lineWidth)
-            dataSet.circleRadius = 2
+            dataSet.circleRadius = CGFloat(circleRadius)
             dataSet.setCircleColor(color)
             dataSets.append(dataSet)
         }
@@ -95,6 +96,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     var graphType = GraphType.trailing_60
     var graphData: TimeSeriesData? = nil
     var lineWidth: Int = 0
+    var circleRadius: Int = 2
     
     var cellHeights: [IndexPath: CGFloat] = [:]
     
@@ -136,39 +138,51 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
             switch graphType {
             case .trailing_5:
                 lineWidth = 0
+                circleRadius = 2
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 5)
             case .trailing_15:
                 lineWidth = 0
+                circleRadius = 2
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 15)
             case .trailing_30:
                 lineWidth = 0
+                circleRadius = 2
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 30)
             case .trailing_60:
                 lineWidth = 0
+                circleRadius = 2
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 60)
             case .trailing_120:
                 lineWidth = 0
+                circleRadius = 2
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 120)
             case .downsampled:
                 lineWidth = 0
+                circleRadius = 2
                 graphData = activeMeasurement.getDownsampledData()
             case .with_lines_trailing_5:
                 lineWidth = 1
+                circleRadius = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 5)
             case .with_lines_trailing_15:
                 lineWidth = 1
+                circleRadius = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 15)
             case .with_lines_trailing_30:
                 lineWidth = 1
+                circleRadius = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 30)
             case .with_lines_trailing_60:
                 lineWidth = 1
+                circleRadius = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 60)
             case .with_lines_trailing_120:
                 lineWidth = 1
+                circleRadius = 0
                 graphData = activeMeasurement.getTrailingData(secondsInTrailingWindow: 120)
             case .with_lines_downsampled:
                 lineWidth = 1
+                circleRadius = 0
                 graphData = activeMeasurement.getDownsampledData()
 
             }
@@ -594,6 +608,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 }
 
                 cell.lineWidth = lineWidth
+                cell.circleRadius = circleRadius
                 cell.timestamps = data.timestamps
                 cell.channel = data.channels[channelSection]
                 LOGGER.trace("Updating channel \(channelSection) with [\(cell.timestamps.count), \(cell.channel.count)] values")
