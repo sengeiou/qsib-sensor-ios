@@ -390,6 +390,9 @@ class QSMeasurement {
     // Data set index already cached in time series data, Time series downsampled + shifted data
     var downsampled: (Int, TimeSeriesData)
     
+    var _payloadLock = pthread_mutex_t()
+
+    
     public init(signalChannels: UInt8, holdInRam: Bool) {
         LOGGER.trace("Allocating QsMeasurement with \(signalChannels)")
         
@@ -399,6 +402,8 @@ class QSMeasurement {
         self.channels = signalChannels
         self.holdInRam = holdInRam
         self.downsampled = (-1, TimeSeriesData([], Array(repeating: [], count: Int(signalChannels)), true))
+
+        pthread_mutex_init(&self._payloadLock, nil)
     }
     
     public func id() -> UUID {
@@ -406,7 +411,11 @@ class QSMeasurement {
     }
     
     public func addPayload(data: Data) -> UInt32? {
-        // TODO: guard with mutex because only sensor lib is thread safe, UI vars are not this might get called several times concurrently
+        pthread_mutex_lock(&self._payloadLock)
+        defer {
+            pthread_mutex_unlock(&self._payloadLock)
+        }
+        
         let activeSet = dataSets.last! as! RamDataSet
         let result = activeSet.addPayload(data: data)
         let maxSamples = 1000000
@@ -418,6 +427,11 @@ class QSMeasurement {
     }
     
     public func startNewDataSet(hz: Float32, scaler: Float32 = 1) {
+        pthread_mutex_lock(&self._payloadLock)
+        defer {
+            pthread_mutex_unlock(&self._payloadLock)
+        }
+
         // Create a new active data set in Ram
         let params = RsParams(id: qs_create_measurement(self.channels), channels: self.channels, hz: hz, scaler: scaler)
         LOGGER.trace("Allocated a QS_SENSOR_LIB measurement with id \(params.id)")
@@ -442,8 +456,13 @@ class QSMeasurement {
     }
          
     public func archive() throws -> URL? {
-        LOGGER.debug("Archiving QSMeasurement of \(dataSets.count) data sets ...")
+        pthread_mutex_lock(&self._payloadLock)
+        defer {
+            pthread_mutex_unlock(&self._payloadLock)
+        }
 
+        LOGGER.debug("Archiving QSMeasurement of \(dataSets.count) data sets ...")
+        
         // Create an csv zip for the data
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("archive.zip")
         try? FileManager.default.removeItem(at: url)
