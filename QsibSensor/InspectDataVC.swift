@@ -334,7 +334,9 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                             let controller = UIActivityViewController.init(activityItems: [archive], applicationActivities: nil)
                             controller.excludedActivityTypes = [UIActivity.ActivityType.postToTwitter, UIActivity.ActivityType.postToFacebook, UIActivity.ActivityType.postToWeibo, UIActivity.ActivityType.message, UIActivity.ActivityType.print, UIActivity.ActivityType.copyToPasteboard, UIActivity.ActivityType.assignToContact, UIActivity.ActivityType.saveToCameraRoll, UIActivity.ActivityType.addToReadingList, UIActivity.ActivityType.postToFlickr,  UIActivity.ActivityType.postToVimeo, UIActivity.ActivityType.postToTencentWeibo]
                             
-                            controller.popoverPresentationController?.sourceView = self.view
+                            // Display the activity from the button
+                            let cell = tableView.cellForRow(at: IndexPath(row: 4, section: 0))
+                            controller.popoverPresentationController?.sourceView = cell?.contentView
 
                             self.present(controller, animated: true, completion: nil)
                         }
