@@ -5,8 +5,12 @@ This repository contains a iOS/iPadOS/macOS utility for controlling devices that
 * Device connection
 * Device configuration
 * Project specific mode activation
-* Real-time graphing of downsampled data
 * Accurate timestamped data export
+* Real-time graphing of downsampled or trailing window of all channels
+* Large partitioned measurements
+    * Change hyper parameters mid measurement
+    * Automatic partition and flush to disk for GBs of data in single measurement
+* Well-tested internals: https://github.com/qsib-cbie/qsib-sensor-lib-rs
 
 ## Data Timestamping
 
@@ -17,6 +21,12 @@ If the firmware implementation is loose with its initiation or duration of sampl
 ## Projects
 
 The following projects are supported to a degree under mainline on the repository
+
+### Oximetry Sensor (Naloxone Project)
+
+An implantable oximeter with multiple channel streams on the order of 50-100Hz. The Biomed BLE service is directly analagous to QSS BLE service; it is temporarily supported and adapted through the existing state machine. Project mode configurations are exposed including component register configuration all the way through.
+
+Sensor side operation is opaque for this project.
 
 ### Multiwave PPG
 

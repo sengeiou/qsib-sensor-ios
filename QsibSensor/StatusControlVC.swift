@@ -67,13 +67,16 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
                     }
                     cell.detailTextLabel?.text = connectionState
                 }
+                
+                if let cell = tableView.cellForRow(at: IndexPath(row: 1, section: 2)) {
+                    cell.detailTextLabel?.text = QS_LIB.getVersion()
+                }
             }
         }
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        
         
         switch indexPath.section {
         case 0:
@@ -100,6 +103,8 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
             default:
                 fatalError("Programming error for \(indexPath)")
             }
+        case 2:
+            break
         default:
             fatalError("Programming error for \(indexPath)")
         }

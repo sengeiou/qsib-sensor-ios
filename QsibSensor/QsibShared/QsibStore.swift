@@ -50,9 +50,14 @@ public struct DidDiscoverCharacteristic: Action {
     let characteristic: CBCharacteristic
 }
 
+public struct DidUpdateValueForBiomedChar1: Action {
+    let peripheral: CBPeripheral
+    let data: Data
+}
+
 public struct DidUpdateValueForBattery: Action {
     let peripheral: CBPeripheral
-    let batteryLevel: UInt8
+    let batteryLevel: Int
 }
 
 public struct DidUpdateValueForSignal: Action {
@@ -130,6 +135,12 @@ public struct UpdateProjectMode: Action {
     let projectMode: String
 }
 
+public struct UpdateProjectDefaultMode: Action {
+    let peripheral: CBPeripheral
+    let projectMode: String
+    let defaultMode: String
+}
+
 public struct UpdateSignalChannels: Action {
     let peripheral: CBPeripheral
     let channels: Int
@@ -200,10 +211,28 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         QSIB_ACTION_DISPATCH(action: StopMeasurement(peripheral: action.peripheral))
     case let action as DidFailToConnect:
         let _ = getPeripheral(&state, action.peripheral)
+    case let action as DidUpdateValueForBiomedChar1:
+        // Override mode info on biomedchar1 remote configs always
+        let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.projectMode = OXIMETER_V0
+        let state = peripheral.getOrDefaultProject()
+        if action.data.count < 10 {
+            break
+        }
+        let data = action.data
+        let modeInfo = state.ox_v0_modes[state.defaultMode!]!
+        modeInfo.biomed_id = Int(data[0])
+        modeInfo.fifo_config = Int(data[1])
+        modeInfo.mode_config = Int(data[2])
+        modeInfo.spo2_config = Int(data[3])
+        modeInfo.led_amp = Int((UInt32(data[4]) << 16) | (UInt32(data[5]) << 8) | UInt32(data[6]))
+        modeInfo.multi_led = Int((UInt16(data[7]) << 8) | UInt16(data[8]))
+        state.ox_v0_modes[state.defaultMode!] = peripheral.updateModeStateForOximeterV0(modeState: modeInfo)
+        peripheral.save()
     case let action as DidUpdateValueForBattery:
         let peripheral = getPeripheral(&state, action.peripheral)
         LOGGER.trace("\(peripheral.name()) has battery level \(action.batteryLevel)")
-        peripheral.batteryLevel = Int(action.batteryLevel)
+        peripheral.batteryLevel = action.batteryLevel
         save(&state, peripheral)
     case let action as DidUpdateValueForSignal:
         let peripheral = getPeripheral(&state, action.peripheral)
@@ -296,9 +325,23 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         case SKIN_HYDRATION_SENSOR_V2:
             peripheral.signalHz = 256
             peripheral.signalChannels = 4
+        case OXIMETER_V0:
+            if peripheral.signalHz == nil {
+                peripheral.signalHz = 1
+            }
+            
+            if peripheral.signalChannels == nil {
+                peripheral.signalChannels = 2
+            }
         default:
             fatalError("Not setting or checking project defaults for \(String(describing: peripheral.projectMode))")
         }
+        save(&state, peripheral)
+    case let action as UpdateProjectDefaultMode:
+        let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.projectMode = action.projectMode
+        let projectState = peripheral.getOrDefaultProject()
+        projectState.defaultMode = action.defaultMode
         save(&state, peripheral)
     case let action as UpdateSignalHz:
         let peripheral = getPeripheral(&state, action.peripheral)
@@ -313,7 +356,7 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         if let numChannels = peripheral.signalChannels {
             var holdInRam: Bool = false
             switch peripheral.projectMode ?? "" {
-            case SHUNT_MONITOR_V1, MWV_PPG_V2:
+            case SHUNT_MONITOR_V1, MWV_PPG_V2, OXIMETER_V0:
                 holdInRam = false
             case SKIN_HYDRATION_SENSOR_V2:
                 holdInRam = true
@@ -358,21 +401,9 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         peripheral.turnOff()
     case let action as IssueControlWriteFor:
         let peripheral = getPeripheral(&state, action.peripheral)
+        peripheral.pause()
+        peripheral.start()
         startNewDataSet(for: peripheral)
-        
-        switch action.projectMode {
-        case MWV_PPG_V2:
-            let state = peripheral.getOrDefaultProject()
-            let currentMode: String = state.defaultMode!
-            let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
-            let hz = 1000.0 / wtime
-            peripheral.activeMeasurement?.startNewDataSet(hz: hz)
-            peripheral.writeProjectControlForPpg()
-        case SHUNT_MONITOR_V1:
-            peripheral.writeProjectControlForShuntMonitor()
-        default:
-            LOGGER.error("Don't know how to handle control writes for projectMode \(action.projectMode)")
-        }
     case let action as SetScan:
         state.ble!.setScan(doScan: action.doScan)
     case _ as QsibTick:
@@ -441,7 +472,14 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
         let hz = 1000.0 / wtime
         peripheral.activeMeasurement?.startNewDataSet(hz: hz)
+    case OXIMETER_V0:
+        let state = peripheral.getOrDefaultProject()
+        let currentMode: String = state.defaultMode!
+        let modeInfo = state.ox_v0_modes[currentMode]!
+        let hz = modeInfo.effective_sample_hz!
+        peripheral.activeMeasurement?.startNewDataSet(hz: hz)
     case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
+        let _ = peripheral.getOrDefaultProject()
         if let hz = peripheral.signalHz {
             peripheral.activeMeasurement?.startNewDataSet(hz: Float(hz))
         } else {

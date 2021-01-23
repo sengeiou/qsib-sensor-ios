@@ -13,6 +13,8 @@ import Toast
 public let MWV_PPG_V2 = "Mutliwavelength PPG V2"
 public let SHUNT_MONITOR_V1 = "Shunt Monitor V1"
 public let SKIN_HYDRATION_SENSOR_V2 = "Skin Hydration V2"
+public let OXIMETER_V0 = "Oximeter V0"
+public let MILK_SENSOR_V0 = "Milk Sensor V0"
 
 
 public class MwvPpgV2ModeCodableState: Codable {
@@ -30,6 +32,23 @@ public class ShuntMonitorV1CodableState: Codable {
 
 public class SkinHydrationV2CodableState: Codable {
     var mode: String?
+    var minCalibratingTemp: Float32?
+    var maxTemp: Float32?
+    var maxTempDiff: Float32?
+}
+
+public class OximeterV0CodableState: Codable {
+    var mode: String?
+    var biomed_id: Int?
+    var fifo_config: Int?
+    var mode_config: Int?
+    var spo2_config: Int?
+    var led_amp: Int?
+    var multi_led: Int?
+    var indicator_control: Int?
+    var indicator_freq: Int?
+    var indicator_duty_cycle: Int?
+    var effective_sample_hz: Float?
 }
 
 public class ProjectCodableState: Codable {
@@ -39,6 +58,7 @@ public class ProjectCodableState: Codable {
     var mwv_ppg_v2_modes: [String: MwvPpgV2ModeCodableState] = [:]
     var sm_v1_modes: [String: ShuntMonitorV1CodableState] = [:]
     var shs_v2_modes: [String: SkinHydrationV2CodableState] = [:]
+    var ox_v0_modes: [String: OximeterV0CodableState] = [:]
 }
 
 public class PersistedConfig: Codable {
@@ -195,7 +215,7 @@ public class QSPeripheral: Hashable {
     }
     
     public func add(characteristic: CBCharacteristic) {
-        self.characteristics[UUID(uuidString: characteristic.uuid.uuidString)!] = characteristic
+        self.characteristics[characteristic.uuid.UUIDValue!] = characteristic
         self.ts = Date()
     }
     
@@ -235,7 +255,7 @@ public class QSPeripheral: Hashable {
     }
     
     private func writeDataToChar(cbuuid: CBUUID, data: Data) {
-        if let characteristic = self.characteristics[UUID(uuidString: cbuuid.uuidString)!] {
+        if let characteristic = self.characteristics[cbuuid.UUIDValue!] {
             self.cbp.writeValue(data, for: characteristic, type: .withResponse)
         } else {
             QSIB_ACTION_DISPATCH(action: AppendToast(message: ToastMessage(message: "Cannot update characteristic", duration: TimeInterval(2), position: .center, title: "Internal BLE Error", image: nil, style: ToastStyle(), completion: nil)))
@@ -250,6 +270,8 @@ public class QSPeripheral: Hashable {
             writeProjectControlForShuntMonitor()
         case SKIN_HYDRATION_SENSOR_V2:
             writeProjectControlForSkinHydrationV2()
+        case OXIMETER_V0:
+            writeProjectControlForOximeterV0()
         default:
             fatalError("Unsupported peripheral type to use to start measurement \(String(describing: projectMode))")
         }
@@ -278,6 +300,12 @@ public class QSPeripheral: Hashable {
             writeControl(data: Data([0x00]))
         case SKIN_HYDRATION_SENSOR_V2:
             writeControl(data: Data([0x01, 0x00]))
+        case OXIMETER_V0:
+            if let characteristic = self.characteristics[BIOMED_CHAR2_UUID.UUIDValue!] {
+                self.cbp.writeValue(Data([0x02]), for: characteristic, type: .withResponse)
+            } else {
+                LOGGER.error("Failed to find BIOMED_CHAR2_UUID \(BIOMED_CHAR2_UUID)")
+            }
         default:
             fatalError("Don't know how to pause \(String(describing: self.projectMode))")
         }
@@ -285,7 +313,7 @@ public class QSPeripheral: Hashable {
     
     public func turnOff() {
         switch self.projectMode ?? "" {
-        case MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2:
+        case MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2, OXIMETER_V0:
             pause()
         case SHUNT_MONITOR_V1:
             let data = Data(repeating: 0xFF, count: 23)
@@ -295,7 +323,7 @@ public class QSPeripheral: Hashable {
         }
     }
     
-    /*!
+    /*! 
      * Write the control message for the PPG sensor.
      * At V2 the following packed struct is expected as the value
 
@@ -373,8 +401,72 @@ public class QSPeripheral: Hashable {
     }
     
     public func writeProjectControlForSkinHydrationV2() {
-        let data = Data([0x02, 0x01])
-        writeControl(data: data)
+        if let mode = projects[SKIN_HYDRATION_SENSOR_V2]?.defaultMode,
+           let modeInfo = projects[SKIN_HYDRATION_SENSOR_V2]?.shs_v2_modes[mode],
+           let tightMinCalibratingTemp = modeInfo.minCalibratingTemp,
+           let tightMaxTemp = modeInfo.maxTemp,
+           let tightMaxTempDiff = modeInfo.maxTempDiff {
+
+
+            var data = Data([
+                0x02, 0x01
+            ])
+
+            data += tightMinCalibratingTemp.bytes
+            data += tightMaxTemp.bytes
+            data += tightMaxTempDiff.bytes
+
+            LOGGER.trace("Writing control message for \(SKIN_HYDRATION_SENSOR_V2) :: \(data.hexEncodedString())")
+
+            writeControl(data: data)
+        }
+    }
+    
+    public func writeProjectControlForOximeterV0() {
+        if let mode = projects[OXIMETER_V0]?.defaultMode,
+           let modeInfo = projects[OXIMETER_V0]?.ox_v0_modes[mode],
+           let biomed_id = modeInfo.biomed_id,
+           let fifo_config = modeInfo.fifo_config,
+           let mode_config = modeInfo.mode_config,
+           let spo2_config = modeInfo.spo2_config,
+           let led_amp = modeInfo.led_amp,
+           let multi_led = modeInfo.multi_led,
+           let indicator_control = modeInfo.indicator_control,
+           let indicator_freq = modeInfo.indicator_freq,
+           let indicator_duty_cycle = modeInfo.indicator_duty_cycle {
+
+            let data = Data([
+                UInt8(0x01),
+                UInt8(biomed_id),
+                UInt8(fifo_config),
+                UInt8(mode_config),
+                UInt8(spo2_config),
+                UInt8((UInt32(led_amp) >> 16) & 0xFF),
+                UInt8((UInt32(led_amp) >> 8) & 0xFF),
+                UInt8((UInt32(led_amp) >> 0) & 0xFF),
+                UInt8((UInt16(multi_led) >> 8) & 0xFF),
+                UInt8((UInt16(multi_led) >> 0) & 0xFF),
+                UInt8(0xff),
+                UInt8(0xff),
+                UInt8(indicator_control),
+                UInt8(indicator_freq),
+                UInt8(indicator_duty_cycle)
+                ])
+
+            if let characteristic = self.characteristics[BIOMED_CHAR1_UUID.UUIDValue!] {
+                self.cbp.writeValue(data, for: characteristic, type: .withResponse)
+            } else {
+                LOGGER.error("Failed to find BIOMED_CHAR1_UUID \(BIOMED_CHAR1_UUID)")
+            }
+        } else {
+            LOGGER.error("Not enough info set to write control for \(OXIMETER_V0)")
+        }
+        
+        if let characteristic = self.characteristics[BIOMED_CHAR2_UUID.UUIDValue!] {
+            self.cbp.writeValue(Data([0x01]), for: characteristic, type: .withResponse)
+        } else {
+            LOGGER.error("Failed to find BIOMED_CHAR2_UUID \(BIOMED_CHAR2_UUID)")
+        }
     }
     
     public func getOrDefaultProject() -> ProjectCodableState {
@@ -460,13 +552,22 @@ public class QSPeripheral: Hashable {
         case SKIN_HYDRATION_SENSOR_V2:
             if projects[SKIN_HYDRATION_SENSOR_V2] == nil {
                 let projectState = ProjectCodableState()
-                projectState.defaultMode = "MODE 0"
-                
-                let mode0State = SkinHydrationV2CodableState()
-                mode0State.mode = "MODE 0"
-                
-                projectState.shs_v2_modes[mode0State.mode!] = mode0State
-                
+                projectState.defaultMode = "STRICT"
+
+                let strictState = SkinHydrationV2CodableState()
+                strictState.mode = "STRICT"
+                strictState.minCalibratingTemp = 30
+                strictState.maxTemp = 80
+                strictState.maxTempDiff = 24
+                projectState.shs_v2_modes[strictState.mode!] = strictState
+
+                let notStrictState = SkinHydrationV2CodableState()
+                notStrictState.mode = "NOT STRICT"
+                notStrictState.minCalibratingTemp = 20
+                notStrictState.maxTemp = 80
+                notStrictState.maxTempDiff = 24
+                projectState.shs_v2_modes[notStrictState.mode!] = notStrictState
+            
                 projects[SKIN_HYDRATION_SENSOR_V2] = projectState
             }
             
@@ -475,9 +576,92 @@ public class QSPeripheral: Hashable {
             }
             
             return project
+        case OXIMETER_V0:
+            if projects[OXIMETER_V0] == nil {
+                let projectState = ProjectCodableState()
+                projectState.defaultMode = "DEFAULT MODE"
+                
+                var mode0State = OximeterV0CodableState()
+                mode0State.mode = "DEFAULT MODE"
+                mode0State.biomed_id = 0x01
+                mode0State.fifo_config = 0x57
+                mode0State.mode_config = 0x03
+                mode0State.spo2_config = 0x6b
+                mode0State.led_amp = 0x333300
+                mode0State.multi_led = 0x0000
+                // v0/1 2 bytes reserved
+                mode0State.indicator_control = 0x01
+                mode0State.indicator_freq = 100
+                mode0State.indicator_duty_cycle = 5
+                
+                mode0State = updateModeStateForOximeterV0(modeState: mode0State)
+                
+                projectState.ox_v0_modes[mode0State.mode!] = mode0State
+                
+                
+                projects[OXIMETER_V0] = projectState
+            }
+            
+            guard let project = projects[projectMode ?? ""] else {
+                fatalError("Inconsistent app state for project \(self)")
+            }
+            
+            return project
+
         default:
             LOGGER.error("No implementation of default for \(projectMode ?? "")")
             return projects[projectMode ?? ""] ?? ProjectCodableState()
         }
+    }
+    
+    func updateModeStateForOximeterV0(modeState: OximeterV0CodableState) -> OximeterV0CodableState {
+        var samplesPerSecond = 0
+        let spo2_sr = (0b00011100 & modeState.spo2_config!) >> 2
+        switch spo2_sr {
+        case 0b000:
+            samplesPerSecond = 50
+        case 0b001:
+            samplesPerSecond = 100
+        case 0b010:
+            samplesPerSecond = 200
+        case 0b011:
+            samplesPerSecond = 400
+        case 0b100:
+            samplesPerSecond = 800
+        case 0b101:
+            samplesPerSecond = 1000
+        case 0b110:
+            samplesPerSecond = 1600
+        case 0b111:
+            samplesPerSecond = 3200
+        default:
+            fatalError("Invalid configuration manipulation for spo2_sr samples per second")
+        }
+        
+        let smp_ave = (0b11100000 & modeState.fifo_config!) >> 5
+        var samplesPerFifoSample = 1
+        switch smp_ave {
+        case 0b000:
+            samplesPerFifoSample = 1
+        case 0b001:
+            samplesPerFifoSample = 2
+        case 0b010:
+            samplesPerFifoSample = 4
+        case 0b011:
+            samplesPerFifoSample = 8
+        case 0b100:
+            samplesPerFifoSample = 16
+        case 0b101:
+            samplesPerFifoSample = 32
+        case 0b110:
+            samplesPerFifoSample = 32
+        case 0b111:
+            samplesPerFifoSample = 32
+        default:
+            fatalError("Invalid configuration manipulation for smp_ave samples per fifo sample")
+        }
+        modeState.effective_sample_hz = Float(samplesPerSecond) / Float(samplesPerFifoSample)
+        
+        return modeState
     }
 }
