@@ -221,12 +221,12 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         }
         let data = action.data
         let modeInfo = state.ox_v0_modes[state.defaultMode!]!
-        modeInfo.biomed_id = Int(data[1])
-        modeInfo.fifo_config = Int(data[2])
-        modeInfo.mode_config = Int(data[3])
-        modeInfo.spo2_config = Int(data[4])
-        modeInfo.led_amp = Int((UInt32(data[5]) << 16) | (UInt32(data[6]) << 8) | UInt32(data[7]))
-        modeInfo.multi_led = Int((UInt16(data[8]) << 8) | UInt16(data[9]))
+        modeInfo.biomed_id = Int(data[0])
+        modeInfo.fifo_config = Int(data[1])
+        modeInfo.mode_config = Int(data[2])
+        modeInfo.spo2_config = Int(data[3])
+        modeInfo.led_amp = Int((UInt32(data[4]) << 16) | (UInt32(data[5]) << 8) | UInt32(data[6]))
+        modeInfo.multi_led = Int((UInt16(data[7]) << 8) | UInt16(data[8]))
         state.ox_v0_modes[state.defaultMode!] = peripheral.updateModeStateForOximeterV0(modeState: modeInfo)
         peripheral.save()
     case let action as DidUpdateValueForBattery:

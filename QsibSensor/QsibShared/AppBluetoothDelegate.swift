@@ -339,12 +339,14 @@ class AppBluetoothDelegate: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             data[6] = UInt8((biomedCounter >> 16) & 0xff)
             data[7] = UInt8((biomedCounter >> 24) & 0xff)
 
-            
-            data.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) in
-                let offsetPtr = ptr.baseAddress!.bindMemory(to: UInt8.self, capacity: 208) + 8
-                value.copyBytes(to: offsetPtr, from: 2..<202)
-            }
-            
+            value.withUnsafeBytes({
+                let offsetPtr = $0.baseAddress!.bindMemory(to: UInt8.self, capacity: 202) + 2
+                for i in 0..<100 {
+                    data[8 + (2 * i)] = (offsetPtr + (2 * i) + 1).pointee
+                    data[8 + (2 * i) + 1] = (offsetPtr + (2 * i)).pointee
+                }
+            })
+
             QSIB_ACTION_DISPATCH(action: DidUpdateValueForSignal(peripheral: peripheral, signal: data))
         default:
             LOGGER.warning("Updated unexpected characteristic: \(characteristic)")
