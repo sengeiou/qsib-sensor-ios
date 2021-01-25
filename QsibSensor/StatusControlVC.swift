@@ -68,7 +68,7 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
                     cell.detailTextLabel?.text = connectionState
                 }
                 
-                if let cell = tableView.cellForRow(at: IndexPath(row: 1, section: 2)) {
+                if let cell = tableView.cellForRow(at: IndexPath(row: 1, section: 1)) {
                     cell.detailTextLabel?.text = QS_LIB.getVersion()
                 }
             }
