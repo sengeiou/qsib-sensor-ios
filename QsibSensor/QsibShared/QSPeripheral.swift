@@ -436,7 +436,6 @@ public class QSPeripheral: Hashable {
            let indicator_duty_cycle = modeInfo.indicator_duty_cycle {
 
             let data = Data([
-                UInt8(0x01),
                 UInt8(biomed_id),
                 UInt8(fifo_config),
                 UInt8(mode_config),
