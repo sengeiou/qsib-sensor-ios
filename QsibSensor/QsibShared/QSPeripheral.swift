@@ -422,7 +422,7 @@ public class QSPeripheral: Hashable {
         }
     }
     
-    public func writeProjectControlForOximeterV0() {
+    public func writeProjectControlForOximeterV0(skipChar2: Bool = false) {
         if let mode = projects[OXIMETER_V0]?.defaultMode,
            let modeInfo = projects[OXIMETER_V0]?.ox_v0_modes[mode],
            let biomed_id = modeInfo.biomed_id,
@@ -462,10 +462,12 @@ public class QSPeripheral: Hashable {
             LOGGER.error("Not enough info set to write control for \(OXIMETER_V0)")
         }
         
-        if let characteristic = self.characteristics[BIOMED_CHAR2_UUID.UUIDValue!] {
-            self.cbp.writeValue(Data([0x01]), for: characteristic, type: .withResponse)
-        } else {
-            LOGGER.error("Failed to find BIOMED_CHAR2_UUID \(BIOMED_CHAR2_UUID)")
+        if !skipChar2 {
+            if let characteristic = self.characteristics[BIOMED_CHAR2_UUID.UUIDValue!] {
+                self.cbp.writeValue(Data([0x01]), for: characteristic, type: .withResponse)
+            } else {
+                LOGGER.error("Failed to find BIOMED_CHAR2_UUID \(BIOMED_CHAR2_UUID)")
+            }
         }
     }
     

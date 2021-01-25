@@ -216,7 +216,7 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.projectMode = OXIMETER_V0
         let state = peripheral.getOrDefaultProject()
-        if action.data.count < 10 {
+        if action.data.count < 9 {
             break
         }
         let data = action.data
@@ -401,8 +401,15 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         peripheral.turnOff()
     case let action as IssueControlWriteFor:
         let peripheral = getPeripheral(&state, action.peripheral)
-        peripheral.pause()
-        peripheral.start()
+        
+        switch peripheral.projectMode ?? "" {
+        case OXIMETER_V0:
+            peripheral.writeProjectControlForOximeterV0(skipChar2: true)
+        default:
+            peripheral.pause()
+            peripheral.start()
+        }
+        
         startNewDataSet(for: peripheral)
     case let action as SetScan:
         state.ble!.setScan(doScan: action.doScan)
