@@ -426,13 +426,17 @@ class QSMeasurement {
         return result
     }
     
-    public func startNewDataSet(hz: Float32, scaler: Float32 = 1, acquireLock: bool = true) {
+    public func startNewDataSet(hz: Float32, scaler: Float32 = 1, acquireLock: Bool = true) {
         if acquireLock {
             pthread_mutex_lock(&self._payloadLock)
-            defer {
+        }
+        
+        defer {
+            if acquireLock {
                 pthread_mutex_unlock(&self._payloadLock)
             }
         }
+
 
         // Create a new active data set in Ram
         let params = RsParams(id: qs_create_measurement(self.channels), channels: self.channels, hz: hz, scaler: scaler)
