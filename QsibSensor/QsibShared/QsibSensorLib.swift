@@ -421,16 +421,22 @@ class QSMeasurement {
         let maxSamples = 1000000
         if activeSet.sampleCount > maxSamples {
             LOGGER.info("Detected ongoing measurement with active set surpassing \(maxSamples) samples")
-            startNewDataSet(hz: activeSet.params.hz, scaler: activeSet.params.scaler)
+            startNewDataSet(hz: activeSet.params.hz, scaler: activeSet.params.scaler, acquireLock: false)
         }
         return result
     }
     
-    public func startNewDataSet(hz: Float32, scaler: Float32 = 1) {
-        pthread_mutex_lock(&self._payloadLock)
-        defer {
-            pthread_mutex_unlock(&self._payloadLock)
+    public func startNewDataSet(hz: Float32, scaler: Float32 = 1, acquireLock: Bool = true) {
+        if acquireLock {
+            pthread_mutex_lock(&self._payloadLock)
         }
+        
+        defer {
+            if acquireLock {
+                pthread_mutex_unlock(&self._payloadLock)
+            }
+        }
+
 
         // Create a new active data set in Ram
         let params = RsParams(id: qs_create_measurement(self.channels), channels: self.channels, hz: hz, scaler: scaler)

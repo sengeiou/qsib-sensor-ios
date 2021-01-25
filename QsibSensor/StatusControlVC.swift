@@ -68,7 +68,7 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
                     cell.detailTextLabel?.text = connectionState
                 }
                 
-                if let cell = tableView.cellForRow(at: IndexPath(row: 1, section: 2)) {
+                if let cell = tableView.cellForRow(at: IndexPath(row: 1, section: 1)) {
                     cell.detailTextLabel?.text = QS_LIB.getVersion()
                 }
             }
@@ -97,14 +97,14 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
                 fatalError("Programming error for \(indexPath)")
             }
         case 1:
+            break
+        case 2:
             switch indexPath.row {
             case 0:
                 self.dismiss(animated: true, completion: nil)
             default:
                 fatalError("Programming error for \(indexPath)")
             }
-        case 2:
-            break
         default:
             fatalError("Programming error for \(indexPath)")
         }
