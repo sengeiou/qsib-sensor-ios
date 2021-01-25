@@ -97,14 +97,14 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
                 fatalError("Programming error for \(indexPath)")
             }
         case 1:
+            break
+        case 2:
             switch indexPath.row {
             case 0:
                 self.dismiss(animated: true, completion: nil)
             default:
                 fatalError("Programming error for \(indexPath)")
             }
-        case 2:
-            break
         default:
             fatalError("Programming error for \(indexPath)")
         }
