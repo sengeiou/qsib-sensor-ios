@@ -35,8 +35,8 @@ void qs_errors_drop(const char *free_me_please);
  * Interactions with measurements are threadsafe,
  * spinning on a RwLock that is biased towards readers.
  */
-uint32_t qs_create_measurement(uint8_t signal_channels);
-bool qs_drop_measurement(uint32_t measurement_id);
+uint32_t qs_measurement_create();
+bool qs_measurement_drop(uint32_t measurement_id);
 
 /*!
  * Ingests a signal notification from a QSIB sensor
@@ -48,9 +48,15 @@ bool qs_drop_measurement(uint32_t measurement_id);
  *
  * Similarly thread-safe to measurement allocation.
  *
- * @return 0 on failure else number of samples consumed per channel
+ * @param[in] buf           The raw payload to consume for the measurement_id
+ * @param[in] len           The number of bytes to read in buf
+ * @param[out] modality_id  The unique id for a retire-able mode identified in the payload
+ * @param[out] num_channels The number of channels in the payload
+ * @param[out] num_samples  The number of samples in the payload
+ *
+ * @return success or failure to add signals
  */
-uint32_t qs_add_signals(uint32_t measurement_id, const uint8_t *buf, uint16_t len);
+bool qs_measurement_consume(uint32_t measurement_id, const uint8_t *buf, uint16_t len, int64_t *modality_id, uint8_t *num_channels, uint32_t *num_samples);
 
 /*!
  * Populates timestamp and channel buffers with data. Data is downsampled over a window
@@ -71,6 +77,7 @@ uint32_t qs_add_signals(uint32_t measurement_id, const uint8_t *buf, uint16_t le
  *
  * Similarly thread-safe to measurement allocation.
  *
+ * @param[in] modality_id The id for a partition of data for a measurement. (Potentially no longer actively consuming payloads).
  * @param[in] hz          The rate of sampling in Hz (1 second period)
  * @param[in] rate_scaler The multiplier on the Hz period (ie 1 second * rate_scaler)
  * @param[in] downsample_seed The seed for a random number generator used to downsample data
@@ -84,4 +91,15 @@ uint32_t qs_add_signals(uint32_t measurement_id, const uint8_t *buf, uint16_t le
  *
  * @return success or failure
  */
-bool qs_export_signals(uint32_t measurement_id, float hz, float rate_scaler, uint64_t downsample_seed, uint32_t downsample_threshold, uint32_t downsample_scale, float trailing_s, double *timestamp_data, double **channel_data, uint32_t *num_total_samples);
+bool qs_measurement_export(uint32_t measurement_id, uint32_t modality_id, float hz, float rate_scaler, uint64_t downsample_seed, uint32_t downsample_threshold, uint32_t downsample_scale, float trailing_s, double *timestamp_data, double **channel_data, uint32_t *num_total_samples);
+
+/*!
+ * Marks a modality for a measurement as no longer active. If payloads rollover, to
+ * the enumeration that indicated the modality previously, they will now reference a new
+ * modality.
+ *
+ * Data can still be exported for this modality.
+ *
+ * @param[in] modality_id The id for a partition of data for a measurement. (Potentially no longer actively consuming payloads).
+ */
+bool qs_measurement_modality_retire(uint32_t measurement_id, uint32_t modality_id);

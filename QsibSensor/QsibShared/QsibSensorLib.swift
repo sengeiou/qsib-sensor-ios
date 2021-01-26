@@ -17,6 +17,7 @@ enum MeasurementState {
 
 public struct RsParams {
     let id: UInt32
+    var modalityId: UInt32?
     let channels: UInt8
     let hz: Float32
     let scaler: Float32
@@ -26,7 +27,7 @@ public protocol DataSetProtocol {
     func getStart() -> Date?
     func getParams() -> RsParams
     func getTrailingData(secondsInTrailingWindow: Float) -> TimeSeriesData
-    func getDownsampledData() -> TimeSeriesData
+    func getDownsampledData(targetCardinality: UInt64?) -> TimeSeriesData
     func getAllData() -> TimeSeriesData
     func asURL() -> URL
 }
@@ -52,7 +53,7 @@ public class TimeSeriesData {
 }
 
 public class RamDataSet: DataSetProtocol {
-    let params: RsParams
+    var params: RsParams
     
     var start: Date?
     var payloadCount: UInt64
@@ -86,7 +87,7 @@ public class RamDataSet: DataSetProtocol {
     }
     
     deinit {
-        let success = qs_drop_measurement(self.params.id)
+        let success = qs_measurement_drop(self.params.id)
         LOGGER.trace("Dropped RamDataSet \(self.params.id) with result \(success)")
         
         if let timestampData = _timestampData {
@@ -149,8 +150,8 @@ public class RamDataSet: DataSetProtocol {
         return getData(targetCardinality: max(500, targetCardinality), secondsInTrailingWindow: secondsInTrailingWindow)
     }
 
-    public func getDownsampledData() -> TimeSeriesData {
-        return getData(targetCardinality: 500)
+    public func getDownsampledData(targetCardinality: UInt64?) -> TimeSeriesData {
+        return getData(targetCardinality: targetCardinality ?? 1000)
     }
     
     public func getAllData() -> TimeSeriesData {
@@ -183,13 +184,26 @@ public class RamDataSet: DataSetProtocol {
             pthread_mutex_unlock(&_payloadLock)
         }
         
-        var samples: UInt32? = nil
+        let modalityId = UnsafeMutablePointer<Int64>.allocate(capacity: 1)
+        let numChannels = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
+        let numSamples = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
+        defer {
+            modalityId.deallocate()
+            numChannels.deallocate()
+            numSamples.deallocate()
+        }
+        var success: Bool = false
         data.withUnsafeBytes({ (buf_ptr: UnsafeRawBufferPointer) in
             let ptr = buf_ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-            samples = qs_add_signals(self.params.id, ptr, UInt16(len))
+            success = qs_measurement_consume(self.params.id, ptr, UInt16(len), modalityId, numChannels, numSamples)
         })
+        if !success {
+            LOGGER.error("Failed to consume payload for \(self.params.id)")
+            return nil
+        }
+        self.params.modalityId = modalityId.pointee > 0 && modalityId.pointee < UINT32_MAX ? UInt32(modalityId.pointee) : nil
         
-        sampleCount += UInt64(samples ?? 0)
+        sampleCount += UInt64(numSamples.pointee)
         payloadCount += 1
         
         let effectiveSize = UInt32(data.count - (2 + 1 + 1 + 4))
@@ -203,7 +217,7 @@ public class RamDataSet: DataSetProtocol {
             start = Date()
         }
 
-        return samples
+        return numSamples.pointee
     }
     
     func getReadableDataRate() -> String {
@@ -294,6 +308,10 @@ public class RamDataSet: DataSetProtocol {
             fatalError("Sample count too large to copy signals")
         }
         
+        if self.params.modalityId == nil {
+            return TimeSeriesData([], Array(repeating: [], count: Int(self.params.channels)))
+        }
+        
         var downsampleThreshold: UInt32 = 1
         var downsampleScale: UInt32 = 1
         if let targetCardinality = targetCardinality {
@@ -308,8 +326,9 @@ public class RamDataSet: DataSetProtocol {
         }
         let (timestampData, channelData, numTotalSamplesData) = getBuffers()
                 
-        let success = qs_export_signals(
+        let success = qs_measurement_export(
             self.params.id,
+            self.params.modalityId!,
             self.params.hz,
             self.params.scaler,
             0xDEADBEEF,
@@ -351,7 +370,7 @@ public class FileDataSet: DataSetProtocol {
         file = ramDataSet.asURL()
         
         // Cache its graphables with dataset timestamp offsets
-        downsampledData = ramDataSet.getDownsampledData()
+        downsampledData = ramDataSet.getDownsampledData(targetCardinality: 100)
         downsampledData.shift(ramDataSet.timestampOffset)
     }
     
@@ -371,7 +390,7 @@ public class FileDataSet: DataSetProtocol {
         return TimeSeriesData([], [])
     }
     
-    public func getDownsampledData() -> TimeSeriesData {
+    public func getDownsampledData(targetCardinality: UInt64?) -> TimeSeriesData {
         return downsampledData
     }
     
@@ -439,7 +458,7 @@ class QSMeasurement {
 
 
         // Create a new active data set in Ram
-        let params = RsParams(id: qs_create_measurement(self.channels), channels: self.channels, hz: hz, scaler: scaler)
+        let params = RsParams(id: qs_measurement_create(), modalityId: nil, channels: self.channels, hz: hz, scaler: scaler)
         LOGGER.trace("Allocated a QS_SENSOR_LIB measurement with id \(params.id)")
         
         var offset: Double = 0
@@ -525,7 +544,7 @@ class QSMeasurement {
                 continue
             }
             
-            let data = dataSet.getDownsampledData()
+            let data = dataSet.getDownsampledData(targetCardinality: nil)
             if let ramDataSet = dataSet as? RamDataSet {
                 data.shift(ramDataSet.timestampOffset)
                 appendingOngoingTimeSeries.append(data)
