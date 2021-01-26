@@ -2,3 +2,4 @@
 *.dSYM.zip
 *.ipa
 QsibSensor.xcodeproj/xcuserdata/**
+QsibSensor.xcodeproj/project.xcworkspace/**
