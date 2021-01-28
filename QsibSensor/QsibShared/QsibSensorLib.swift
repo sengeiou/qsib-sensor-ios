@@ -15,20 +15,31 @@ enum MeasurementState {
     case ended
 }
 
-public struct RsParams {
-    let id: UInt32
+public struct MeasurementParams {
+    var rsId: UInt32
+    var modalities: [ModalityParams]
+}
+
+public class ModalityParams {
     var modalityId: UInt32?
-    let channels: UInt8
+    var channels: UInt8?
     let hz: Float32
     let scaler: Float32
+    
+    init(modalityId: UInt32, channels: UInt8?, hz: Float32, scaler: Float32) {
+        self.modalityId = modalityId
+        self.channels = channels
+        self.hz = hz
+        self.scaler = scaler
+    }
 }
 
 public protocol DataSetProtocol {
     func getStart() -> Date?
-    func getParams() -> RsParams
-    func getTrailingData(secondsInTrailingWindow: Float) -> TimeSeriesData
-    func getDownsampledData(targetCardinality: UInt64?) -> TimeSeriesData
-    func getAllData() -> TimeSeriesData
+    func getParams() -> MeasurementParams
+    func getTrailingData(modality: ModalityParams, secondsInTrailingWindow: Float) -> TimeSeriesData
+    func getDownsampledData(modality: ModalityParams, targetCardinality: UInt64?) -> TimeSeriesData
+    func getAllData() -> NullableTimeSeriesData
     func asURL() -> URL
 }
 
@@ -52,8 +63,29 @@ public class TimeSeriesData {
     }
 }
 
+public class NullableTimeSeriesData {
+    var timestamps: [Double]
+    var channels: [[Double?]]
+    var shifted: Bool
+    
+    init(_ timestamps: [Double], _ channels: [[Double?]], _ shifted: Bool = false) {
+        self.timestamps = timestamps
+        self.channels = channels
+        self.shifted = false
+    }
+    
+    func shift(_ timestampOffset: Double) {
+        guard !shifted else {
+            return
+        }
+        self.timestamps = self.timestamps.map { $0 + timestampOffset }
+        self.shifted = true
+    }
+}
+
+
 public class RamDataSet: DataSetProtocol {
-    var params: RsParams
+    var params: MeasurementParams
     
     var start: Date?
     var payloadCount: UInt64
@@ -70,8 +102,8 @@ public class RamDataSet: DataSetProtocol {
     var avgEffectivePayloadSize: UInt32?
     var timestampOffset: Double
     
-    init(libParams: RsParams, timestampOffset: Double) {
-        params = libParams
+    init(measurementParams: MeasurementParams, timestampOffset: Double) {
+        params = measurementParams
         
         start = nil
         payloadCount = 0
@@ -87,8 +119,8 @@ public class RamDataSet: DataSetProtocol {
     }
     
     deinit {
-        let success = qs_measurement_drop(self.params.id)
-        LOGGER.trace("Dropped RamDataSet \(self.params.id) with result \(success)")
+        let success = qs_measurement_drop(params.rsId)
+        LOGGER.trace("Dropped Measurement \(params.rsId) with result \(success)")
         
         if let timestampData = _timestampData {
             timestampData.deallocate()
@@ -107,27 +139,27 @@ public class RamDataSet: DataSetProtocol {
         return start
     }
     
-    public func getParams() -> RsParams {
+    public func getParams() -> MeasurementParams {
         return params
     }
         
     public func asURL() -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("data_\(params.id).csv")
-        LOGGER.debug("Writing RamDataSet \(self.params.id) to \(url.absoluteString)")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("data_\(params.rsId).csv")
+        LOGGER.debug("Writing RamDataSet \(params.rsId) to \(url.absoluteString)")
         
         // Get all of the data to place in a file using the measurement id
-        let tsd = getAllData()
+        let tsd: NullableTimeSeriesData = getAllData()
         let ts = tsd.timestamps
         let cs = tsd.channels
         
         // Dump all of the data to a file as CSV
-        let channelHeaders = (0..<params.channels).map { "Channel\($0)" }.joined(separator: ",")
+        let channelHeaders = (0..<cs.count).map { "Channel\($0)" }.joined(separator: ",")
         let csvData = "TimestampSinceCaptureStart,\(channelHeaders)\n" + zip(ts, (0..<Int(cs[0].count)))
             .map { (t, i) in
                 let channelValues = (0..<cs.count)
                     .map { cs[$0][i] }
-                    .map { String.init(format: "%.3f", $0) }.joined(separator: ",")
-                return "\(t + timestampOffset),\(channelValues)"
+                    .map { $0 == nil ? "" : String.init(format: "%.3f", $0!) }.joined(separator: ",")
+                return "\(String.init(format: "%.6f", t + timestampOffset)),\(channelValues)"
             }
             .joined(separator: "\n")
         let uncompressedData = csvData.data(using: String.Encoding.utf8)!
@@ -141,21 +173,84 @@ public class RamDataSet: DataSetProtocol {
         return url
     }
     
-    public func getTrailingData(secondsInTrailingWindow: Float) -> TimeSeriesData {
+    public func getTrailingData(modality: ModalityParams, secondsInTrailingWindow: Float) -> TimeSeriesData {
         // target cardinality is blanket across all payloads.
         // trailing window / total measurement is percent of payloads that may be downsampled
         // sampling 500 from that portion requires higher target cardinality
-        let secondsInMeasurement = Float(max(sampleCount, 1)) / (params.hz * params.scaler)
+        let secondsInMeasurement = Float(max(sampleCount, 1)) / (modality.hz * modality.scaler)
         let targetCardinality = UInt64(500.0 / (max(secondsInTrailingWindow, 1.0) / max(secondsInMeasurement, 1.0)))
-        return getData(targetCardinality: max(500, targetCardinality), secondsInTrailingWindow: secondsInTrailingWindow)
+        return getData(modality: modality, targetCardinality: max(500, targetCardinality), secondsInTrailingWindow: secondsInTrailingWindow)
     }
 
-    public func getDownsampledData(targetCardinality: UInt64?) -> TimeSeriesData {
-        return getData(targetCardinality: targetCardinality ?? 1000)
+    public func getDownsampledData(modality: ModalityParams, targetCardinality: UInt64?) -> TimeSeriesData {
+        return getData(modality: modality, targetCardinality: targetCardinality ?? 500)
     }
     
-    public func getAllData() -> TimeSeriesData {
-        return getData()
+    public func getAllData() -> NullableTimeSeriesData {
+        // TODO: Sort and interleave data
+        let unsortedData = params.modalities.map {
+            getData(modality: $0)
+        }
+        let totalChannels: Int = unsortedData.map { $0.channels.count }.reduce(0, { $0 + $1 })
+        var cj = Array(repeating: 0, count: unsortedData.count)
+        for i in 1..<unsortedData.count {
+            cj[i] = unsortedData[i].channels.count + cj[i - 1]
+        }
+
+        
+        var loop = true
+        let sorted = NullableTimeSeriesData([], Array(repeating: [], count: totalChannels))
+        var tj = Array(repeating: 0, count: unsortedData.count)
+        while loop {
+            var next: Int? = nil
+            var nextStamp: Double? = nil
+            for (i, data) in unsortedData.enumerated() {
+                if next == nil || nextStamp == nil {
+                    if !data.timestamps[tj[i]].isInfinite {
+                        next = i
+                        nextStamp = data.timestamps[tj[i]]
+                    } else {
+                        continue
+                    }
+                } else if nextStamp! > data.timestamps[tj[i]] {
+                    next = i
+                    nextStamp = data.timestamps[tj[i]]
+                }
+            }
+            
+            if let next = next {
+                // Add the next timestamp
+                sorted.timestamps.append(unsortedData[next].timestamps[tj[next]])
+                
+                // Add null for preceding modality channels
+                for cji in 0..<cj[next] {
+                    sorted.channels[cji].append(nil)
+                }
+                
+                // Add next modality channels
+                for cji in 0..<unsortedData[next].channels.count {
+                    sorted.channels[cj[next] + cji].append(unsortedData[next].channels[cji][tj[next]])
+                }
+                
+                // Add null for following modality channels
+                for cji in cj[next]+unsortedData[next].channels.count..<totalChannels {
+                    sorted.channels[cji].append(nil)
+                }
+                
+                // Advance sorted samples for this modality
+                tj[next] += 1
+                
+                // Allow over indexing into sentinel infinity
+                if tj[next] == unsortedData[next].timestamps.count {
+                    unsortedData[next].timestamps.append(Double.infinity)
+                }
+            } else {
+                loop = false
+                break
+            }
+        }
+        
+        return sorted
     }
     
     public func addPayload(data: Data) -> UInt32? {
@@ -195,13 +290,21 @@ public class RamDataSet: DataSetProtocol {
         var success: Bool = false
         data.withUnsafeBytes({ (buf_ptr: UnsafeRawBufferPointer) in
             let ptr = buf_ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-            success = qs_measurement_consume(self.params.id, ptr, UInt16(len), modalityId, numChannels, numSamples)
+            success = qs_measurement_consume(self.params.rsId, ptr, UInt16(len), modalityId, numChannels, numSamples)
         })
         if !success {
-            LOGGER.error("Failed to consume payload for \(self.params.id)")
+            LOGGER.error("Failed to consume payload for \(self.params.rsId)")
             return nil
         }
-        self.params.modalityId = modalityId.pointee > 0 && modalityId.pointee < UINT32_MAX ? UInt32(modalityId.pointee) : nil
+        
+        if self.params.modalities.contains(where: { $0.modalityId ?? 0 == modalityId.pointee }) {
+            let modality = self.params.modalities.first(where: { $0.modalityId ?? 0 == modalityId.pointee })!
+            modality.channels = numChannels.pointee
+        } else if modalityId.pointee > 0 && modalityId.pointee < UINT32_MAX {
+            // TODO hz will not be set correctly but the data will be recorded
+            LOGGER.warning("Found unexpected modality \(modalityId.pointee) with \(numChannels.pointee) channels")
+            self.params.modalities.append(ModalityParams(modalityId: UInt32(modalityId.pointee), channels: numChannels.pointee, hz: 1, scaler: 1))
+        }
         
         sampleCount += UInt64(numSamples.pointee)
         payloadCount += 1
@@ -243,7 +346,8 @@ public class RamDataSet: DataSetProtocol {
     
     func getReadableDataSize(multiplier: Double) -> String {
         // Storage size in RAM as Doubles for current data set
-        let totalSamples = Int(params.channels + 1) * Int(sampleCount)
+        let totalChannels = self.params.modalities.map { $0.channels ?? 0 }.reduce(0, { $0 + $1})
+        let totalSamples = Int(totalChannels + 1) * Int(sampleCount)
         let numBytes = totalSamples * 8;
         let multipliedBytes = UInt64(multiplier * Double(numBytes))
 
@@ -260,7 +364,6 @@ public class RamDataSet: DataSetProtocol {
     }
 
     private func getBuffers() -> (UnsafeMutablePointer<Double>, UnsafeMutablePointer<UnsafeMutablePointer<Double>?>, UnsafeMutablePointer<UInt32>) {
-        
         var newBufSize = UInt64(pow(2, ceil(log(Double(self.sampleCount)) / log(2))))
         newBufSize = min(newBufSize, UInt64(UINT32_MAX))
         newBufSize = max(newBufSize, 4096)
@@ -280,14 +383,16 @@ public class RamDataSet: DataSetProtocol {
         _timestampData = UnsafeMutablePointer<Double>.allocate(capacity: Int(_bufSize))
 
         // Allocate the channelData
+        // TODO: Be more efficient with the number to allocate
+        let totalChannels = self.params.modalities.map { _ in 12 }.reduce(0, { $0 + $1})
         if let _ = _channelData {
-            for i in 0..<self.params.channels {
+            for i in 0..<totalChannels {
                 _channelData![Int(i)]!.deallocate()
             }
             _channelData!.deallocate()
         }
-        _channelData = UnsafeMutablePointer<UnsafeMutablePointer<Double>?>.allocate(capacity: Int(self.params.channels))
-        for i in 0..<self.params.channels {
+        _channelData = UnsafeMutablePointer<UnsafeMutablePointer<Double>?>.allocate(capacity: Int(totalChannels))
+        for i in 0..<totalChannels {
             _channelData![Int(i)] = UnsafeMutablePointer<Double>.allocate(capacity: Int(_bufSize))
         }
         
@@ -301,17 +406,18 @@ public class RamDataSet: DataSetProtocol {
         return (_timestampData!, _channelData!, _numTotalSamplesData!)
     }
         
-    private func getData(targetCardinality: UInt64? = nil, secondsInTrailingWindow: Float = -1) -> TimeSeriesData {
-        LOGGER.trace("Copying signals for RamDataSet \(self.params.id)")
+    private func getData(modality: ModalityParams, targetCardinality: UInt64? = nil, secondsInTrailingWindow: Float = -1) -> TimeSeriesData {
+        LOGGER.trace("Copying signals for RamDataSet \(self.params.rsId)")
         
         guard self.sampleCount < UINT32_MAX else {
             fatalError("Sample count too large to copy signals")
         }
         
-        if self.params.modalityId == nil {
-            return TimeSeriesData([], Array(repeating: [], count: Int(self.params.channels)))
+        guard let channels = modality.channels else {
+            LOGGER.warning("Attempting to get data for modality that has not interpretted any channels")
+            return TimeSeriesData([], [])
         }
-        
+                
         var downsampleThreshold: UInt32 = 1
         var downsampleScale: UInt32 = 1
         if let targetCardinality = targetCardinality {
@@ -327,10 +433,10 @@ public class RamDataSet: DataSetProtocol {
         let (timestampData, channelData, numTotalSamplesData) = getBuffers()
                 
         let success = qs_measurement_export(
-            self.params.id,
-            self.params.modalityId!,
-            self.params.hz,
-            self.params.scaler,
+            self.params.rsId,
+            modality.modalityId ?? 0,
+            modality.hz,
+            modality.scaler,
             0xDEADBEEF,
             downsampleThreshold,
             downsampleScale,
@@ -340,16 +446,16 @@ public class RamDataSet: DataSetProtocol {
             numTotalSamplesData)
         
         if success {
-            LOGGER.trace("Copied \(numTotalSamplesData[0]) samples over \(self.params.channels) channels for RamDataSet \(self.params.id)")
+            LOGGER.trace("Copied \(numTotalSamplesData[0]) samples over \(channels) channels for RamDataSet \(self.params.rsId)")
             let timestamps = [Double](UnsafeBufferPointer(start: timestampData, count: Int(numTotalSamplesData[0])))
-            let channels: [[Double]] = (0..<self.params.channels).map { channelIndex in
+            let channels: [[Double]] = (0..<channels).map { channelIndex in
                 let v = [Double](UnsafeBufferPointer(start: channelData[Int(channelIndex)]!, count: Int(numTotalSamplesData[0])))
                 return v
             }
              
             return TimeSeriesData(timestamps, channels)
         } else {
-            LOGGER.error("Failed to export signals for RamDataSet \(self.params.id)")
+            LOGGER.error("Failed to export signals for RamDataSet \(self.params.rsId)")
             LOGGER.error("QS_SENSOR_LIB error message: \(String(describing: QS_LIB.getError()))")
             fatalError(String(describing: QS_LIB.getError()))
         }
@@ -358,10 +464,10 @@ public class RamDataSet: DataSetProtocol {
 
 public class FileDataSet: DataSetProtocol {
     let start: Date?
-    let params: RsParams
+    let params: MeasurementParams
     let file: URL
     
-    let downsampledData: TimeSeriesData
+    var downsampledDataByModality: [UInt32: TimeSeriesData]
     
     init(ramDataSet: RamDataSet) {
         // Keep copy of ram params and data set
@@ -369,29 +475,35 @@ public class FileDataSet: DataSetProtocol {
         params = ramDataSet.params
         file = ramDataSet.asURL()
         
+        downsampledDataByModality = [:]
+        
         // Cache its graphables with dataset timestamp offsets
-        downsampledData = ramDataSet.getDownsampledData(targetCardinality: 100)
-        downsampledData.shift(ramDataSet.timestampOffset)
+        for modality in ramDataSet.params.modalities {
+            let downsampledData = ramDataSet.getDownsampledData(modality: modality, targetCardinality: 100)
+            downsampledData.shift(ramDataSet.timestampOffset)
+            downsampledDataByModality[modality.modalityId ?? 0] = downsampledData
+        }
     }
     
     public func getStart() -> Date? {
         return start
     }
     
-    public func getParams() -> RsParams {
+    public func getParams() -> MeasurementParams {
         return params
     }
     
-    public func getAllData() -> TimeSeriesData {
+    public func getAllData() -> NullableTimeSeriesData {
+        LOGGER.error("FileDataSet.getAllData is intentionally a nop")
+        return NullableTimeSeriesData([], Array(repeating: [], count: params.modalities.map { Int($0.channels ?? 0) }.reduce(0, +)))
+    }
+    
+    public func getTrailingData(modality: ModalityParams, secondsInTrailingWindow: Float) -> TimeSeriesData {
         return TimeSeriesData([], [])
     }
     
-    public func getTrailingData(secondsInTrailingWindow: Float) -> TimeSeriesData {
-        return TimeSeriesData([], [])
-    }
-    
-    public func getDownsampledData(targetCardinality: UInt64?) -> TimeSeriesData {
-        return downsampledData
+    public func getDownsampledData(modality: ModalityParams, targetCardinality: UInt64?) -> TimeSeriesData {
+        return downsampledDataByModality[modality.modalityId ?? 0] ?? TimeSeriesData([], [])
     }
     
     public func asURL() -> URL {
@@ -403,24 +515,22 @@ class QSMeasurement {
     let uuid = UUID()
     var state: MeasurementState
     var dataSets: [DataSetProtocol]
-    let channels: UInt8
     let holdInRam: Bool
     
     // Data set index already cached in time series data, Time series downsampled + shifted data
-    var downsampled: (Int, TimeSeriesData)
+    var downsampled: (Int, [TimeSeriesData])
     
     var _payloadLock = pthread_mutex_t()
 
     
-    public init(signalChannels: UInt8, holdInRam: Bool) {
-        LOGGER.trace("Allocating QsMeasurement with \(signalChannels)")
+    public init(holdInRam: Bool) {
+        LOGGER.trace("Allocating QsMeasurement with holdInRam=\(holdInRam)...")
         
         self.dataSets = []
         
         self.state = .initial
-        self.channels = signalChannels
         self.holdInRam = holdInRam
-        self.downsampled = (-1, TimeSeriesData([], Array(repeating: [], count: Int(signalChannels)), true))
+        self.downsampled = (-1, [])
 
         pthread_mutex_init(&self._payloadLock, nil)
     }
@@ -440,12 +550,28 @@ class QSMeasurement {
         let maxSamples = 1000000
         if activeSet.sampleCount > maxSamples {
             LOGGER.info("Detected ongoing measurement with active set surpassing \(maxSamples) samples")
-            startNewDataSet(hz: activeSet.params.hz, scaler: activeSet.params.scaler, acquireLock: false)
+            startNewDataSet(currParams: activeSet.getParams(), acquireLock: false)
         }
         return result
     }
     
-    public func startNewDataSet(hz: Float32, scaler: Float32 = 1, acquireLock: Bool = true) {
+    public func getParams(hzMap: [UInt32: Float], defaultHz: Float = 1.0) -> MeasurementParams {
+        var params = MeasurementParams(rsId: 0, modalities: hzMap.sorted(by: { $0.0 < $1.0}).map { ModalityParams(modalityId: $0.0, channels: nil, hz: $0.1, scaler: 1.0)})
+        if let last = dataSets.last {
+            for modality in last.getParams().modalities {
+                if let params = params.modalities.first(where: { $0.modalityId ?? 0 == modality.modalityId ?? 0}) {
+                    params.channels = modality.channels
+                } else {
+                    params.modalities.append(ModalityParams(modalityId: modality.modalityId ?? 0, channels: modality.channels, hz: defaultHz, scaler: 1))
+                }
+            }
+        }
+        params.modalities.sort { $0.modalityId ?? 0 < $1.modalityId ?? 0 }
+        LOGGER.trace("Got params from using hz map \(hzMap): \(params)")
+        return params
+    }
+    
+    public func startNewDataSet(currParams: MeasurementParams, acquireLock: Bool = true) {
         if acquireLock {
             pthread_mutex_lock(&self._payloadLock)
         }
@@ -458,8 +584,9 @@ class QSMeasurement {
 
 
         // Create a new active data set in Ram
-        let params = RsParams(id: qs_measurement_create(), modalityId: nil, channels: self.channels, hz: hz, scaler: scaler)
-        LOGGER.trace("Allocated a QS_SENSOR_LIB measurement with id \(params.id)")
+        var newParams = currParams
+        newParams.rsId = qs_measurement_create()
+        LOGGER.trace("Allocated a QS_SENSOR_LIB measurement with id \(newParams.rsId)")
         
         var offset: Double = 0
         if let firstStart = dataSets.first?.getStart() {
@@ -477,7 +604,7 @@ class QSMeasurement {
         }
 
         // Set the new active data set as active
-        dataSets.append(RamDataSet(libParams: params, timestampOffset: offset))
+        dataSets.append(RamDataSet(measurementParams: newParams, timestampOffset: offset))
     }
          
     public func archive() throws -> URL? {
@@ -504,27 +631,36 @@ class QSMeasurement {
         return url
     }
     
-    public func getAllData() -> TimeSeriesData {
-        let resultingData = TimeSeriesData([], Array(repeating: [], count: Int(self.channels)), true)
+    public func getAllRamData() -> NullableTimeSeriesData {
+        var resultingData: NullableTimeSeriesData? = nil
         for dataSet in dataSets {
-            let data = dataSet.getAllData()
-            if let ramDataSet = dataSet as? RamDataSet {
-                data.shift(ramDataSet.timestampOffset)
-            }
-            resultingData.timestamps.append(contentsOf: data.timestamps)
-            for i in 0..<resultingData.channels.count {
-                resultingData.channels[i].append(contentsOf: data.channels[i])
+            if let dataSet = dataSet as? RamDataSet {
+                let data = dataSet.getAllData()
+                data.shift(dataSet.timestampOffset)
+                
+                if resultingData == nil {
+                    resultingData = data
+                } else {
+                    resultingData!.timestamps.append(contentsOf: data.timestamps)
+                    for i in 0..<resultingData!.channels.count {
+                        resultingData!.channels[i].append(contentsOf: data.channels[i])
+                    }
+                }
             }
         }
-        return resultingData
+        return resultingData ?? NullableTimeSeriesData([], [])
     }
     
-    public func getTrailingData(secondsInTrailingWindow: Float) -> TimeSeriesData {
+    public func getTrailingData(secondsInTrailingWindow: Float) -> [TimeSeriesData] {
         if let dataSet = dataSets.last {
             if let ramDataSet = dataSet as? RamDataSet {
-                let data = ramDataSet.getTrailingData(secondsInTrailingWindow: secondsInTrailingWindow)
-                data.shift(ramDataSet.timestampOffset)
-                return data
+                var retval: [TimeSeriesData] = []
+                for modality in ramDataSet.getParams().modalities {
+                    let data = ramDataSet.getTrailingData(modality: modality, secondsInTrailingWindow: secondsInTrailingWindow)
+                    data.shift(ramDataSet.timestampOffset)
+                    retval.append(data)
+                }
+                return retval
             }
         }
         
@@ -534,36 +670,53 @@ class QSMeasurement {
     /*
      * [ fileDataSet, fileDataSet, ramDataSet ]
      * cache downsampled data from fileDataSet, append downsampled + shifted data from ramDataSet
+     
+     TODO handle modalities changing channels cross data sets
      */
-    public func getDownsampledData() -> TimeSeriesData {
-        let (dataSetCachedIndex, timeSeriesData) = downsampled
+    public func getDownsampledData() -> [TimeSeriesData] {
+        var (dataSetCachedIndex, timeSeriesData) = downsampled
         var newDataSetCachedIndex = dataSetCachedIndex
-        var appendingOngoingTimeSeries: [TimeSeriesData] = []
+        var appendingOngoingTimeSeries: [[TimeSeriesData]] = []
         for (index, dataSet) in dataSets.enumerated() {
             if dataSetCachedIndex >= index {
                 continue
             }
             
-            let data = dataSet.getDownsampledData(targetCardinality: nil)
-            if let ramDataSet = dataSet as? RamDataSet {
-                data.shift(ramDataSet.timestampOffset)
-                appendingOngoingTimeSeries.append(data)
-            } else {
-                timeSeriesData.timestamps.append(contentsOf: data.timestamps)
-                for i in 0..<timeSeriesData.channels.count {
-                    timeSeriesData.channels[i].append(contentsOf: data.channels[i])
+            for (i, modality) in dataSet.getParams().modalities.enumerated() {
+                let data = dataSet.getDownsampledData(modality: modality, targetCardinality: nil)
+                if let ramDataSet = dataSet as? RamDataSet {
+                    data.shift(ramDataSet.timestampOffset)
+                    if i + 1 < appendingOngoingTimeSeries.count {
+                        // Don't need while because we are going from 0 up by 1, guaranteed to hit on a previous loop if file, file, ram pattern is followed
+                        appendingOngoingTimeSeries.append([])
+                    }
+                    appendingOngoingTimeSeries[i].append(data)
+                } else {
+                    if i + 1 < timeSeriesData.count {
+                        // Don't need while because we are going from 0 up by 1, guaranteed to hit on a previous loop if file, file, ram pattern is followed
+                        timeSeriesData.append(TimeSeriesData([], Array(repeating: [], count: Int(modality.channels ?? 0))))
+                    }
+
+                    timeSeriesData[i].timestamps.append(contentsOf: data.timestamps)
+                    for i in 0..<timeSeriesData[i].channels.count {
+                        timeSeriesData[i].channels[i].append(contentsOf: data.channels[i])
+                    }
+                    
+                    // set multiple times per modality because they are identical cases for dataset type
+                    newDataSetCachedIndex = index
                 }
-                newDataSetCachedIndex = index
             }
         }
         
         downsampled = (newDataSetCachedIndex, timeSeriesData)
         
-        let resultingData = TimeSeriesData(timeSeriesData.timestamps, timeSeriesData.channels, true)
-        for ongoingData in appendingOngoingTimeSeries {
-            resultingData.timestamps.append(contentsOf: ongoingData.timestamps)
-            for i in 0..<resultingData.channels.count {
-                resultingData.channels[i].append(contentsOf: ongoingData.channels[i])
+        let resultingData = timeSeriesData.map { TimeSeriesData($0.timestamps, $0.channels, true) }
+        for (i, modalityAppendingSeries) in appendingOngoingTimeSeries.enumerated() {
+            for ongoingData in modalityAppendingSeries {
+                resultingData[i].timestamps.append(contentsOf: ongoingData.timestamps)
+                for j in 0..<resultingData[i].channels.count {
+                    resultingData[i].channels[j].append(contentsOf: ongoingData.channels[j])
+                }
             }
         }
         
