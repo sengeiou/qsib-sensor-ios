@@ -480,7 +480,7 @@ func startNewDataSet(for peripheral: QSPeripheral) {
             return
         }
         
-        let params = measurement.getParams(hzMap: [:], defaultHz: hz)
+        let params = measurement.getParams(hzMap: [0: hz, 1: 104], defaultHz: 1)
         measurement.startNewDataSet(currParams: params)
     case OXIMETER_V0:
         let state = peripheral.getOrDefaultProject()
@@ -493,7 +493,7 @@ func startNewDataSet(for peripheral: QSPeripheral) {
             return
         }
         
-        let params = measurement.getParams(hzMap: [:], defaultHz: hz)
+        let params = measurement.getParams(hzMap: [0: hz], defaultHz: hz)
         measurement.startNewDataSet(currParams: params)
     case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
         let _ = peripheral.getOrDefaultProject()
@@ -503,10 +503,10 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         }
         
         peripheral.signalHz = peripheral.signalHz ?? 1
+        let hz = Float(peripheral.signalHz!)
 
-        let params = measurement.getParams(hzMap: [:], defaultHz: Float(peripheral.signalHz!))
+        let params = measurement.getParams(hzMap: [0: hz], defaultHz: hz)
         measurement.startNewDataSet(currParams: params)
-
     default:
         fatalError("Don't know how to start new dataset for \(String(describing: peripheral.projectMode))")
     }

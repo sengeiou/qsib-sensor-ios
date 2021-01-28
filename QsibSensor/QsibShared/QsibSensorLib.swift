@@ -15,9 +15,18 @@ enum MeasurementState {
     case ended
 }
 
-public struct MeasurementParams {
+public class MeasurementParams {
     var rsId: UInt32
+    var defaultHz: Float
+    var hzMap: [UInt8: Float]
     var modalities: [ModalityParams]
+    
+    init(rsId: UInt32, defaultHz: Float, hzMap: [UInt8: Float], modalities: [ModalityParams]) {
+        self.rsId = rsId
+        self.defaultHz = defaultHz
+        self.hzMap = hzMap
+        self.modalities = modalities
+    }
 }
 
 public class ModalityParams {
@@ -40,7 +49,7 @@ public protocol DataSetProtocol {
     func getTrailingData(modality: ModalityParams, secondsInTrailingWindow: Float) -> TimeSeriesData
     func getDownsampledData(modality: ModalityParams, targetCardinality: UInt64?) -> TimeSeriesData
     func getAllData() -> NullableTimeSeriesData
-    func asURL() -> URL
+    func asURL() -> URL?
 }
 
 public class TimeSeriesData {
@@ -143,7 +152,7 @@ public class RamDataSet: DataSetProtocol {
         return params
     }
         
-    public func asURL() -> URL {
+    public func asURL() -> URL? {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("data_\(params.rsId).csv")
         LOGGER.debug("Writing RamDataSet \(params.rsId) to \(url.absoluteString)")
         
@@ -151,6 +160,11 @@ public class RamDataSet: DataSetProtocol {
         let tsd: NullableTimeSeriesData = getAllData()
         let ts = tsd.timestamps
         let cs = tsd.channels
+        
+        guard ts.count > 0 && cs.count > 0 else {
+            LOGGER.error("Cannot emit data without any timestamps or channels")
+            return nil
+        }
         
         // Dump all of the data to a file as CSV
         let channelHeaders = (0..<cs.count).map { "Channel\($0)" }.joined(separator: ",")
@@ -187,7 +201,12 @@ public class RamDataSet: DataSetProtocol {
     }
     
     public func getAllData() -> NullableTimeSeriesData {
-        // TODO: Sort and interleave data
+        // Sort and interleave data
+        guard params.modalities.count > 0 else {
+            LOGGER.warning("No data modalities to dump")
+            return NullableTimeSeriesData([], [])
+        }
+        
         let unsortedData = params.modalities.map {
             getData(modality: $0)
         }
@@ -280,17 +299,19 @@ public class RamDataSet: DataSetProtocol {
         }
         
         let modalityId = UnsafeMutablePointer<Int64>.allocate(capacity: 1)
+        let modalityType = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
         let numChannels = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
         let numSamples = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
         defer {
             modalityId.deallocate()
+            modalityType.deallocate()
             numChannels.deallocate()
             numSamples.deallocate()
         }
         var success: Bool = false
         data.withUnsafeBytes({ (buf_ptr: UnsafeRawBufferPointer) in
             let ptr = buf_ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-            success = qs_measurement_consume(self.params.rsId, ptr, UInt16(len), modalityId, numChannels, numSamples)
+            success = qs_measurement_consume(self.params.rsId, ptr, UInt16(len), modalityId, modalityType, numChannels, numSamples)
         })
         if !success {
             LOGGER.error("Failed to consume payload for \(self.params.rsId)")
@@ -298,12 +319,12 @@ public class RamDataSet: DataSetProtocol {
         }
         
         if self.params.modalities.contains(where: { $0.modalityId ?? 0 == modalityId.pointee }) {
-            let modality = self.params.modalities.first(where: { $0.modalityId ?? 0 == modalityId.pointee })!
-            modality.channels = numChannels.pointee
+            LOGGER.trace("Added \(numSamples.pointee) samples of \(numChannels.pointee) to \(modalityId.pointee)(\(modalityType.pointee))")
         } else if modalityId.pointee > 0 && modalityId.pointee < UINT32_MAX {
-            // TODO hz will not be set correctly but the data will be recorded
             LOGGER.warning("Found unexpected modality \(modalityId.pointee) with \(numChannels.pointee) channels")
-            self.params.modalities.append(ModalityParams(modalityId: UInt32(modalityId.pointee), channels: numChannels.pointee, hz: 1, scaler: 1))
+            self.params.modalities.append(ModalityParams(modalityId: UInt32(modalityId.pointee), channels: numChannels.pointee, hz: self.params.hzMap[modalityType.pointee] ?? self.params.defaultHz, scaler: 1))
+        } else {
+            LOGGER.trace("Nop for \(ModalityParams(modalityId: UInt32(modalityId.pointee), channels: numChannels.pointee, hz: self.params.hzMap[modalityType.pointee] ?? self.params.defaultHz, scaler: 1))")
         }
         
         sampleCount += UInt64(numSamples.pointee)
@@ -465,7 +486,7 @@ public class RamDataSet: DataSetProtocol {
 public class FileDataSet: DataSetProtocol {
     let start: Date?
     let params: MeasurementParams
-    let file: URL
+    let file: URL?
     
     var downsampledDataByModality: [UInt32: TimeSeriesData]
     
@@ -506,7 +527,7 @@ public class FileDataSet: DataSetProtocol {
         return downsampledDataByModality[modality.modalityId ?? 0] ?? TimeSeriesData([], [])
     }
     
-    public func asURL() -> URL {
+    public func asURL() -> URL? {
         return file
     }
 }
@@ -555,23 +576,25 @@ class QSMeasurement {
         return result
     }
     
-    public func getParams(hzMap: [UInt32: Float], defaultHz: Float = 1.0) -> MeasurementParams {
-        var params = MeasurementParams(rsId: 0, modalities: hzMap.sorted(by: { $0.0 < $1.0}).map { ModalityParams(modalityId: $0.0, channels: nil, hz: $0.1, scaler: 1.0)})
-        if let last = dataSets.last {
-            for modality in last.getParams().modalities {
-                if let params = params.modalities.first(where: { $0.modalityId ?? 0 == modality.modalityId ?? 0}) {
-                    params.channels = modality.channels
-                } else {
-                    params.modalities.append(ModalityParams(modalityId: modality.modalityId ?? 0, channels: modality.channels, hz: defaultHz, scaler: 1))
-                }
-            }
-        }
-        params.modalities.sort { $0.modalityId ?? 0 < $1.modalityId ?? 0 }
-        LOGGER.trace("Got params from using hz map \(hzMap): \(params)")
+    public func getParams(hzMap: [UInt8: Float], defaultHz: Float) -> MeasurementParams {
+        let params = MeasurementParams(rsId: 0, defaultHz: defaultHz, hzMap: hzMap, modalities: [])
+//        if let last = dataSets.last {
+//            for modality in last.getParams().modalities {
+//                if let params = params.modalities.first(where: { $0.modalityId ?? 0 == modality.modalityId ?? 0}) {
+//                    params.channels = modality.channels
+//                } else {
+//                    params.modalities.append(ModalityParams(modalityId: modality.modalityId ?? 0, channels: modality.channels, hz: defaultHz, scaler: 1))
+//                }
+//            }
+//        }
+//        params.modalities.sort { $0.modalityId ?? 0 < $1.modalityId ?? 0 }
+        params.hzMap = hzMap
+        params.defaultHz = defaultHz
+        LOGGER.trace("Got params from using hz map \(hzMap) and defaultHz \(defaultHz): \(params)")
         return params
     }
     
-    public func startNewDataSet(currParams: MeasurementParams, acquireLock: Bool = true) {
+    public func startNewDataSet(newParams: MeasurementParams, acquireLock: Bool = true) {
         if acquireLock {
             pthread_mutex_lock(&self._payloadLock)
         }
@@ -584,7 +607,6 @@ class QSMeasurement {
 
 
         // Create a new active data set in Ram
-        var newParams = currParams
         newParams.rsId = qs_measurement_create()
         LOGGER.trace("Allocated a QS_SENSOR_LIB measurement with id \(newParams.rsId)")
         
@@ -623,9 +645,12 @@ class QSMeasurement {
         }
         
         for dataSet in dataSets {
-            let dataSetUrl = dataSet.asURL()
-            LOGGER.debug("Adding entry: \(dataSetUrl)")
-            try archive.addEntry(with: dataSetUrl.lastPathComponent, relativeTo: dataSetUrl.deletingLastPathComponent(), compressionMethod: .deflate)
+            if let dataSetUrl = dataSet.asURL() {
+                LOGGER.debug("Adding entry: \(dataSetUrl)")
+                try archive.addEntry(with: dataSetUrl.lastPathComponent, relativeTo: dataSetUrl.deletingLastPathComponent(), compressionMethod: .deflate)
+            } else {
+                LOGGER.warning("Skipping entry from: \(dataSet.getParams())")
+            }
         }
                     
         return url

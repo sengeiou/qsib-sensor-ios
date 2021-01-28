@@ -185,7 +185,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 circleRadius = 0
                 graphData = activeMeasurement.getDownsampledData()
             }
-            LOGGER.trace("Graph \(graphType) data has \(String(describing: graphData!.count)) modalities \(graphData!.map { $0.timestamps.count }.reduce(0, +) / graphData!.count) timestamps on average")
+            let averageNumTimestamps = graphData!.map { $0.timestamps.count }.reduce(0, +) / max(1, graphData!.count)
+            LOGGER.trace("Graph \(graphType) data has \(String(describing: graphData!.count)) modalities \(averageNumTimestamps) timestamps on average")
         }
         
         DispatchQueue.main.async {

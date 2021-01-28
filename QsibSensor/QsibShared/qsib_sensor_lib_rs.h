@@ -51,12 +51,13 @@ bool qs_measurement_drop(uint32_t measurement_id);
  * @param[in] buf           The raw payload to consume for the measurement_id
  * @param[in] len           The number of bytes to read in buf
  * @param[out] modality_id  The unique id for a retire-able mode identified in the payload
+ * @param[out] modality_type The [0,15] modality enumeration that mapped to the modality_id
  * @param[out] num_channels The number of channels in the payload
  * @param[out] num_samples  The number of samples in the payload
  *
  * @return success or failure to add signals
  */
-bool qs_measurement_consume(uint32_t measurement_id, const uint8_t *buf, uint16_t len, int64_t *modality_id, uint8_t *num_channels, uint32_t *num_samples);
+bool qs_measurement_consume(uint32_t measurement_id, const uint8_t *buf, uint16_t len, int64_t *modality_id, uint8_t* modality_type, uint8_t *num_channels, uint32_t *num_samples);
 
 /*!
  * Populates timestamp and channel buffers with data. Data is downsampled over a window
