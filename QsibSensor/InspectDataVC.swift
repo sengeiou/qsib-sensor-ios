@@ -607,7 +607,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 var totalIndex = 0
                 let channelsPerSeries = data.map { $0.channels.count }
                 while totalIndex < channelSection {
-                    if totalIndex + channelsPerSeries[seriesIndex] < channelSection {
+                    LOGGER.trace("Iter channelSection \(channelSection) as \(seriesIndex), \(channelIndex) from \(channelsPerSeries)")
+                    if totalIndex + channelsPerSeries[seriesIndex] <= channelSection {
                         totalIndex += channelsPerSeries[seriesIndex]
                         seriesIndex += 1
                         continue

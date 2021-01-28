@@ -571,7 +571,7 @@ class QSMeasurement {
         let maxSamples = 1000000
         if activeSet.sampleCount > maxSamples {
             LOGGER.info("Detected ongoing measurement with active set surpassing \(maxSamples) samples")
-            startNewDataSet(currParams: activeSet.getParams(), acquireLock: false)
+            startNewDataSet(newParams: activeSet.getParams(), acquireLock: false)
         }
         return result
     }
