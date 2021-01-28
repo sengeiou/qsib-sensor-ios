@@ -321,7 +321,7 @@ public class RamDataSet: DataSetProtocol {
         if self.params.modalities.contains(where: { $0.modalityId ?? 0 == modalityId.pointee }) {
             LOGGER.trace("Added \(numSamples.pointee) samples of \(numChannels.pointee) to \(modalityId.pointee)(\(modalityType.pointee))")
         } else if modalityId.pointee > 0 && modalityId.pointee < UINT32_MAX {
-            LOGGER.warning("Found unexpected modality \(modalityId.pointee) with \(numChannels.pointee) channels")
+            LOGGER.trace("Found modality \(modalityId.pointee) with \(numChannels.pointee) channels")
             self.params.modalities.append(ModalityParams(modalityId: UInt32(modalityId.pointee), channels: numChannels.pointee, hz: self.params.hzMap[modalityType.pointee] ?? self.params.defaultHz, scaler: 1))
         } else {
             LOGGER.trace("Nop for \(ModalityParams(modalityId: UInt32(modalityId.pointee), channels: numChannels.pointee, hz: self.params.hzMap[modalityType.pointee] ?? self.params.defaultHz, scaler: 1))")
@@ -578,16 +578,9 @@ class QSMeasurement {
     
     public func getParams(hzMap: [UInt8: Float], defaultHz: Float) -> MeasurementParams {
         let params = MeasurementParams(rsId: 0, defaultHz: defaultHz, hzMap: hzMap, modalities: [])
-//        if let last = dataSets.last {
-//            for modality in last.getParams().modalities {
-//                if let params = params.modalities.first(where: { $0.modalityId ?? 0 == modality.modalityId ?? 0}) {
-//                    params.channels = modality.channels
-//                } else {
-//                    params.modalities.append(ModalityParams(modalityId: modality.modalityId ?? 0, channels: modality.channels, hz: defaultHz, scaler: 1))
-//                }
-//            }
-//        }
-//        params.modalities.sort { $0.modalityId ?? 0 < $1.modalityId ?? 0 }
+
+        // Previous modalities are rediscovered and assigned hz according to hz map and default
+        
         params.hzMap = hzMap
         params.defaultHz = defaultHz
         LOGGER.trace("Got params from using hz map \(hzMap) and defaultHz \(defaultHz): \(params)")
@@ -711,15 +704,19 @@ class QSMeasurement {
                 let data = dataSet.getDownsampledData(modality: modality, targetCardinality: nil)
                 if let ramDataSet = dataSet as? RamDataSet {
                     data.shift(ramDataSet.timestampOffset)
-                    if i + 1 < appendingOngoingTimeSeries.count {
+                    if i == appendingOngoingTimeSeries.count {
                         // Don't need while because we are going from 0 up by 1, guaranteed to hit on a previous loop if file, file, ram pattern is followed
                         appendingOngoingTimeSeries.append([])
+                    } else if i > appendingOngoingTimeSeries.count {
+                        LOGGER.error("Unexpected state for cached downsampled data accessing \(i) of \(appendingOngoingTimeSeries.count)")
                     }
                     appendingOngoingTimeSeries[i].append(data)
                 } else {
-                    if i + 1 < timeSeriesData.count {
+                    if i == timeSeriesData.count {
                         // Don't need while because we are going from 0 up by 1, guaranteed to hit on a previous loop if file, file, ram pattern is followed
                         timeSeriesData.append(TimeSeriesData([], Array(repeating: [], count: Int(modality.channels ?? 0))))
+                    } else if i > timeSeriesData.count {
+                        LOGGER.error("Unexpected state for cached downsampled data accessing \(i) of \(timeSeriesData.count)")
                     }
 
                     timeSeriesData[i].timestamps.append(contentsOf: data.timestamps)
@@ -735,12 +732,16 @@ class QSMeasurement {
         
         downsampled = (newDataSetCachedIndex, timeSeriesData)
         
-        let resultingData = timeSeriesData.map { TimeSeriesData($0.timestamps, $0.channels, true) }
+        var resultingData = timeSeriesData.map { TimeSeriesData($0.timestamps, $0.channels, true) }
         for (i, modalityAppendingSeries) in appendingOngoingTimeSeries.enumerated() {
             for ongoingData in modalityAppendingSeries {
-                resultingData[i].timestamps.append(contentsOf: ongoingData.timestamps)
-                for j in 0..<resultingData[i].channels.count {
-                    resultingData[i].channels[j].append(contentsOf: ongoingData.channels[j])
+                if i == resultingData.count {
+                    resultingData.append(ongoingData)
+                } else {
+                    resultingData[i].timestamps.append(contentsOf: ongoingData.timestamps)
+                    for j in 0..<resultingData[i].channels.count {
+                        resultingData[i].channels[j].append(contentsOf: ongoingData.channels[j])
+                    }
                 }
             }
         }
