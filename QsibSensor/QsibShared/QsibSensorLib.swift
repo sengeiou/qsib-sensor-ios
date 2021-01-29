@@ -153,7 +153,8 @@ public class RamDataSet: DataSetProtocol {
     }
         
     public func asURL() -> URL? {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("data_\(params.rsId).csv")
+        let fileName = "data_\(params.rsId).csv"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         LOGGER.debug("Writing RamDataSet \(params.rsId) to \(url.absoluteString)")
         
         // Get all of the data to place in a file using the measurement id
@@ -173,10 +174,13 @@ public class RamDataSet: DataSetProtocol {
                 let channelValues = (0..<cs.count)
                     .map { cs[$0][i] }
                     .map { $0 == nil ? "" : String.init(format: "%.3f", $0!) }.joined(separator: ",")
-                return "\(String.init(format: "%.6f", t + timestampOffset)),\(channelValues)"
+                let row = "\(String.init(format: "%.6f", t + timestampOffset)),\(channelValues)"
+                LOGGER.trace("ROW: '\(row)'")
+                return row
             }
             .joined(separator: "\n")
         let uncompressedData = csvData.data(using: String.Encoding.utf8)!
+        LOGGER.trace("Uncompressed size of \(fileName) is \(uncompressedData.count)")
 
         
         // Actual file IO
@@ -630,23 +634,29 @@ class QSMeasurement {
 
         LOGGER.debug("Archiving QSMeasurement of \(dataSets.count) data sets ...")
         
-        // Create an csv zip for the data
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("archive.zip")
-        try? FileManager.default.removeItem(at: url)
-        guard let archive = Archive(url: url, accessMode: .create) else  {
-            fatalError("Failed to create archive file")
-        }
+        // Create a directory for csv to zip as an archive
+        let idStr = id().uuidString
+        let idPrefix = idStr[..<idStr.index(idStr.startIndex, offsetBy: 8)]
+        let measurementUrl = FileManager.default.temporaryDirectory.appendingPathComponent("measurment-\(idPrefix)")
+        try? FileManager.default.removeItem(at: measurementUrl)
+        try FileManager.default.createDirectory(at: measurementUrl, withIntermediateDirectories: true)
         
+        // Copy data sets for measurement
         for dataSet in dataSets {
             if let dataSetUrl = dataSet.asURL() {
-                LOGGER.debug("Adding entry: \(dataSetUrl)")
-                try archive.addEntry(with: dataSetUrl.lastPathComponent, relativeTo: dataSetUrl.deletingLastPathComponent(), compressionMethod: .deflate)
+                let copyUrl = measurementUrl.appendingPathComponent(dataSetUrl.lastPathComponent)
+                try FileManager.default.copyItem(at: dataSetUrl, to: copyUrl)
+                LOGGER.debug("Adding entry: \(copyUrl)")
             } else {
                 LOGGER.warning("Skipping entry from: \(dataSet.getParams())")
             }
         }
-                    
-        return url
+        
+        // Zip up csv as the archive
+        let archiveUrl = FileManager.default.temporaryDirectory.appendingPathComponent("archive-\(idPrefix).zip")
+        try FileManager.default.zipItem(at: measurementUrl, to: archiveUrl)
+        
+        return archiveUrl
     }
     
     public func getAllRamData() -> NullableTimeSeriesData {
