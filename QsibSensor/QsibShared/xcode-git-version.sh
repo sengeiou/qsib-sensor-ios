@@ -20,7 +20,7 @@ hash git 2>/dev/null || { echo >&2 "Git required, not installed.  Aborting build
 INFO_PLIST="${PROJECT_DIR}/QsibSensor/Info.plist"
 
 # Build version (closest-tag-or-branch "-" commits-since-tag "-" short-hash dirty-flag)
-BUILD_VERSION=$(git describe --tags --always --dirty=+)
+BUILD_VERSION=$(git describe --tags --always)
 
 # Use the latest tag for short version (expected tag format "vn[.n[.n]]")
 # or if there are no tags, we make up version 0.0.<commit count>
