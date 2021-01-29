@@ -101,13 +101,7 @@ public class RamDataSet: DataSetProtocol {
     var sampleCount: UInt64
     
     var _payloadLock = pthread_mutex_t()
-    
-    var _bufSize: UInt32
-    var _bufLock = pthread_mutex_t()
-    var _timestampData: UnsafeMutablePointer<Double>?
-    var _channelData: UnsafeMutablePointer<UnsafeMutablePointer<Double>?>?
-    var _numTotalSamplesData: UnsafeMutablePointer<UInt32>?
-    
+        
     var avgEffectivePayloadSize: UInt32?
     var timestampOffset: Double
     
@@ -118,10 +112,7 @@ public class RamDataSet: DataSetProtocol {
         payloadCount = 0
         sampleCount = 0
         
-        _bufSize = 0
-        
         pthread_mutex_init(&_payloadLock, nil)
-        pthread_mutex_init(&_bufLock, nil)
         
         avgEffectivePayloadSize = nil
         self.timestampOffset = timestampOffset
@@ -130,18 +121,6 @@ public class RamDataSet: DataSetProtocol {
     deinit {
         let success = qs_measurement_drop(params.rsId)
         LOGGER.trace("Dropped Measurement \(params.rsId) with result \(success)")
-        
-        if let timestampData = _timestampData {
-            timestampData.deallocate()
-        }
-        
-        if let channelData = _channelData {
-            channelData.deallocate()
-        }
-        
-        if let numTotalSamplesData = _numTotalSamplesData {
-            numTotalSamplesData.deallocate()
-        }
     }
     
     public func getStart() -> Date? {
@@ -387,49 +366,6 @@ public class RamDataSet: DataSetProtocol {
             return "0B"
         }
     }
-
-    private func getBuffers() -> (UnsafeMutablePointer<Double>, UnsafeMutablePointer<UnsafeMutablePointer<Double>?>, UnsafeMutablePointer<UInt32>) {
-        var newBufSize = UInt64(pow(2, ceil(log(Double(self.sampleCount)) / log(2))))
-        newBufSize = min(newBufSize, UInt64(UINT32_MAX))
-        newBufSize = max(newBufSize, 4096)
-        
-        // Skip reallocating if the current buffers are big enough
-        if _bufSize >= newBufSize && _timestampData != nil && _channelData != nil && _numTotalSamplesData != nil {
-            _numTotalSamplesData![0] = _bufSize
-            return (_timestampData!, _channelData!, _numTotalSamplesData!)
-        }
-        
-        _bufSize = UInt32(newBufSize)
-        
-        // Allocate the timestampData
-        if let _ = _timestampData {
-            _timestampData!.deallocate()
-        }
-        _timestampData = UnsafeMutablePointer<Double>.allocate(capacity: Int(_bufSize))
-
-        // Allocate the channelData
-        // TODO: Be more efficient with the number to allocate
-        let totalChannels = self.params.modalities.map { _ in 12 }.reduce(0, { $0 + $1})
-        if let _ = _channelData {
-            for i in 0..<totalChannels {
-                _channelData![Int(i)]!.deallocate()
-            }
-            _channelData!.deallocate()
-        }
-        _channelData = UnsafeMutablePointer<UnsafeMutablePointer<Double>?>.allocate(capacity: Int(totalChannels))
-        for i in 0..<totalChannels {
-            _channelData![Int(i)] = UnsafeMutablePointer<Double>.allocate(capacity: Int(_bufSize))
-        }
-        
-        // Allocate the numTotalSamplesData
-        if let _ = _numTotalSamplesData {
-            _numTotalSamplesData!.deallocate()
-        }
-        _numTotalSamplesData = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
-        _numTotalSamplesData![0] = _bufSize
-        
-        return (_timestampData!, _channelData!, _numTotalSamplesData!)
-    }
         
     private func getData(modality: ModalityParams, targetCardinality: UInt64? = nil, secondsInTrailingWindow: Float = -1) -> TimeSeriesData {
         LOGGER.trace("Copying signals for RamDataSet \(self.params.rsId)")
@@ -450,13 +386,21 @@ public class RamDataSet: DataSetProtocol {
             downsampleScale = 1024 * 1024
             downsampleThreshold = UInt32(UInt64(downsampleScale) * targetCardinality / samples)
         }
-        
-        pthread_mutex_lock(&_bufLock)
+
+        let bufferId = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
+        let numTotalSamples = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
+        let numChannels = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
+        let timestampData = UnsafeMutablePointer<UnsafeMutablePointer<Double>?>.allocate(capacity: 1)
+        let channelData = UnsafeMutablePointer<UnsafeMutablePointer<UnsafeMutablePointer<Double>?>?>.allocate(capacity: 1)
         defer {
-            pthread_mutex_unlock(&_bufLock)
+            bufferId.deallocate()
+            numTotalSamples.deallocate()
+            numChannels.deallocate()
+            timestampData.deallocate()
+            channelData.deallocate()
         }
-        let (timestampData, channelData, numTotalSamplesData) = getBuffers()
-                
+
+        
         let success = qs_measurement_export(
             self.params.rsId,
             modality.modalityId ?? 0,
@@ -466,22 +410,29 @@ public class RamDataSet: DataSetProtocol {
             downsampleThreshold,
             downsampleScale,
             secondsInTrailingWindow,
+            bufferId,
+            numTotalSamples,
+            numChannels,
             timestampData,
-            channelData,
-            numTotalSamplesData)
+            channelData)
         
         if success {
-            LOGGER.trace("Copied \(numTotalSamplesData[0]) samples over \(channels) channels for RamDataSet \(self.params.rsId)")
-            let timestamps = [Double](UnsafeBufferPointer(start: timestampData, count: Int(numTotalSamplesData[0])))
-            let channels: [[Double]] = (0..<channels).map { channelIndex in
-                let v = [Double](UnsafeBufferPointer(start: channelData[Int(channelIndex)]!, count: Int(numTotalSamplesData[0])))
+            LOGGER.trace("Copied \(numTotalSamples.pointee) samples over \(numChannels.pointee) channels for RamDataSet \(self.params.rsId)")
+            let timestamps = [Double](UnsafeBufferPointer(start: timestampData.pointee, count: Int(numTotalSamples.pointee)))
+            let channels: [[Double]] = (0..<Int(channels)).map { channelIndex in
+                let v = [Double](UnsafeBufferPointer(start: channelData.pointee![channelIndex]!, count: Int(numTotalSamples.pointee)))
                 return v
             }
+            
+            let returnSuccess = qs_buffer_return(bufferId.pointee)
+            LOGGER.trace("Returned buffers for \(bufferId.pointee) with \(returnSuccess)")
              
             return TimeSeriesData(timestamps, channels)
         } else {
             LOGGER.error("Failed to export signals for RamDataSet \(self.params.rsId)")
             LOGGER.error("QS_SENSOR_LIB error message: \(String(describing: QS_LIB.getError()))")
+            let returnSuccess = qs_buffer_return(bufferId.pointee)
+            LOGGER.trace("Returned buffers for \(bufferId.pointee) with \(returnSuccess)")
             fatalError(String(describing: QS_LIB.getError()))
         }
     }
@@ -601,7 +552,6 @@ class QSMeasurement {
                 pthread_mutex_unlock(&self._payloadLock)
             }
         }
-
 
         // Create a new active data set in Ram
         newParams.rsId = qs_measurement_create()

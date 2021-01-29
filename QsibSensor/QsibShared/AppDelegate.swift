@@ -14,6 +14,7 @@ import AsyncHTTPClient
 import Toast
 import Logging
 import ReSwift
+import ZIPFoundation
 
 public let EVENT_LOOP_GROUP = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount - 1)
 public let DISPATCH_EVENT_LOOP_GROUP = MultiThreadedEventLoopGroup(numberOfThreads: 1)

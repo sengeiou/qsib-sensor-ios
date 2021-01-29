@@ -57,7 +57,7 @@ bool qs_measurement_drop(uint32_t measurement_id);
  *
  * @return success or failure to add signals
  */
-bool qs_measurement_consume(uint32_t measurement_id, const uint8_t *buf, uint16_t len, int64_t *modality_id, uint8_t* modality_type, uint8_t *num_channels, uint32_t *num_samples);
+bool qs_measurement_consume(uint32_t measurement_id, const uint8_t *buf, uint16_t len, int64_t *modality_id, uint8_t *modality_type, uint8_t *num_channels, uint32_t *num_samples);
 
 /*!
  * Populates timestamp and channel buffers with data. Data is downsampled over a window
@@ -85,14 +85,42 @@ bool qs_measurement_consume(uint32_t measurement_id, const uint8_t *buf, uint16_
  * @param[in] downsample_threshold The inclusive threshold to accept values after mod downsample_scale
  * @param[in] downsample_scale The mod to map random values into a continuous domain [0, scale]
  * @param[in] trailing_s If > 0, constrains eligble data points to the final trailing_s seconds of the measurement
- * @param[out] timestamp_data The buffer that will hold the result of interpreting the data
- * @param[out] channel_data The 2D matrix of [channel][samples]. [samples] is parallel to timestamp_data.
- * @param[in|out] num_total_samples (Capacity before call, Actual number after).
- *                        The number of samples each channel has in the buffer. Same for timestamp_data
  *
+ * @param[out] buffer_id      The output buffers timestamp_data and channel_data are identified by this id.
+ * @param[out] num_total_samples The number of samples in the timestamp and per channel in channel_data.
+ * @param[out] num_channels      The number of channels in channel_data.
+ * @param[out] timestamp_data    The buffer that will hold the result of interpreting the timestamps of each sample.
+ *                                  2D like [overwritten pointer][timestamps].
+ * @param[out] channel_data      The buffer that will hold the samples per channel parallel on per channel and timestamps.
+ *                                  3D like [overwritten pointer][channel][samples].
+ *                                  Each [samples] is of the same length as [timestamps]
  * @return success or failure
  */
-bool qs_measurement_export(uint32_t measurement_id, uint32_t modality_id, float hz, float rate_scaler, uint64_t downsample_seed, uint32_t downsample_threshold, uint32_t downsample_scale, float trailing_s, double *timestamp_data, double **channel_data, uint32_t *num_total_samples);
+bool qs_measurement_export(
+    uint32_t measurement_id,
+    uint32_t modality_id,
+    float hz,
+    float rate_scaler,
+    uint64_t downsample_seed,
+    uint32_t downsample_threshold,
+    uint32_t downsample_scale,
+    float trailing_s,
+    uint32_t *buffer_id,
+    uint32_t *num_total_samples,
+    uint8_t *num_channels,
+    double **timestamp_data,
+    double ***channel_data);
+
+/*!
+ * Allows re-use of buffers assoicated with the provided id.
+ *
+ * If buffers are not returned, they are re-allocated every time and never free'd.
+ *
+ * @param[in] buffer_id  The buffer id associated with timestamp_data and channel_data from a preceding export.
+ *
+ * @return true if the buffer was checked out (meaning you did return a valid buffer id)
+ */
+bool qs_buffer_return(uint32_t buffer_id);
 
 /*!
  * Marks a modality for a measurement as no longer active. If payloads rollover, to
