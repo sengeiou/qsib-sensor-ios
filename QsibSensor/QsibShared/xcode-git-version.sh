@@ -17,7 +17,7 @@ hash git 2>/dev/null || { echo >&2 "Git required, not installed.  Aborting build
 #GIT=$(xcrun -find git)
 
 # Run Script build phases that operate on product files of the target that defines them should use the value of this build setting [TARGET_BUILD_DIR]. But Run Script build phases that operate on product files of other targets should use “BUILT_PRODUCTS_DIR” instead.
-INFO_PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+INFO_PLIST="${PROJECT_DIR}/QsibSensor/Info.plist"
 
 # Build version (closest-tag-or-branch "-" commits-since-tag "-" short-hash dirty-flag)
 BUILD_VERSION=$(git describe --tags --always --dirty=+)

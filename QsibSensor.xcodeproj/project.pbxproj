@@ -169,10 +169,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 068E707B2565AC3200673E32 /* Build configuration list for PBXNativeTarget "QsibSensor" */;
 			buildPhases = (
+				06A6B52825C4A49E0065EB5B /* Set Git Info */,
 				068E70632565AC2F00673E32 /* Sources */,
 				068E70642565AC2F00673E32 /* Frameworks */,
 				068E70652565AC2F00673E32 /* Resources */,
-				06A6B52825C4A49E0065EB5B /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -252,7 +252,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		06A6B52825C4A49E0065EB5B /* ShellScript */ = {
+		06A6B52825C4A49E0065EB5B /* Set Git Info */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -264,9 +264,11 @@
 				"$(TARGET_BUILD_DIR)/$(INFOPLIST_FILE)",
 				"$(PROJECT_DIR)/$(INFOPLIST_FILE)",
 			);
+			name = "Set Git Info";
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(INPUTPLIST_PATH)",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
