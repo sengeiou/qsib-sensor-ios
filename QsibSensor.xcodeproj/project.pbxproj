@@ -262,6 +262,7 @@
 			);
 			inputPaths = (
 				"$(TARGET_BUILD_DIR)/$(INFOPLIST_FILE)",
+				"$(PROJECT_DIR)/$(INFOPLIST_FILE)",
 			);
 			outputFileListPaths = (
 			);
@@ -269,7 +270,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/Users/jwtrueb/Desktop/workspace/qsib-sensor/qsib-sensor-ios/QsibSensor/QsibSensor/QsibShared/xcode-git-version.sh\n";
+			shellScript = ". ${PROJECT_DIR}/QsibSensor/QsibShared/xcode-git-version.sh\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
