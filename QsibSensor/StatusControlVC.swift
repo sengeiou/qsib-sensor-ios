@@ -14,8 +14,12 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
     var peripheral: QSPeripheral?
     var updateTs: Date?
     
+    var version: String = ""
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        version = getVersion()
         
         LOGGER.debug("Loaded StatusControlVC")
     }
@@ -68,6 +72,10 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
                     cell.detailTextLabel?.text = connectionState
                 }
                 
+                if let cell = tableView.cellForRow(at: IndexPath(row: 0, section: 1)) {
+                    cell.detailTextLabel?.text = version
+                }
+                
                 if let cell = tableView.cellForRow(at: IndexPath(row: 1, section: 1)) {
                     cell.detailTextLabel?.text = QS_LIB.getVersion()
                 }
@@ -108,5 +116,12 @@ class StatusControlVC: UITableViewController, StoreSubscriber {
         default:
             fatalError("Programming error for \(indexPath)")
         }
+    }
+    
+    private func getVersion() -> String {
+        let dictionary = Bundle.main.infoDictionary!
+        LOGGER.trace("\(dictionary)")
+        let build = dictionary["CFBundleBuildVersion"] as? String
+        return build!
     }
 }

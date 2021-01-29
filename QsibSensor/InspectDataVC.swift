@@ -94,7 +94,7 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     var peripheral: QSPeripheral?
     var updateTs: Date? = nil
     var graphType = GraphType.trailing_60
-    var graphData: TimeSeriesData? = nil
+    var graphData: [TimeSeriesData]? = nil
     var lineWidth: Int = 0
     var circleRadius: Int = 2
     
@@ -184,9 +184,9 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 lineWidth = 1
                 circleRadius = 0
                 graphData = activeMeasurement.getDownsampledData()
-
             }
-            LOGGER.trace("Graph \(graphType) data has \(String(describing: graphData?.timestamps.count)) timestamps")
+            let averageNumTimestamps = graphData!.map { $0.timestamps.count }.reduce(0, +) / max(1, graphData!.count)
+            LOGGER.trace("Graph \(graphType) data has \(String(describing: graphData!.count)) modalities \(averageNumTimestamps) timestamps on average")
         }
         
         DispatchQueue.main.async {
@@ -238,7 +238,8 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
     }
     
     override func numberOfSections(in tableView: UITableView) -> Int {
-        let baseSections = 1 + (self.peripheral?.signalChannels ?? 0)
+        let totalNumChannels = graphData?.map { $0.channels.count }.reduce(0, { $0 + $1 })
+        let baseSections = 1 + (totalNumChannels ?? 0)
         switch self.peripheral?.projectMode ?? "" {
         case MWV_PPG_V2, OXIMETER_V0:
             // Add 1 section for configuration of measurement
@@ -601,16 +602,33 @@ class InspectDataVC: UITableViewController, StoreSubscriber {
                 }
                 
                 let channelSection = indexPath.section - 1 - (isConfigged ? 1 : 0)
-                if data.timestamps.count == 0 || data.channels.count == 0 || data.channels[0].count == 0 || channelSection >= data.channels.count {
+                var seriesIndex = 0
+                var channelIndex = 0
+                var totalIndex = 0
+                let channelsPerSeries = data.map { $0.channels.count }
+                while totalIndex < channelSection {
+                    LOGGER.trace("Iter channelSection \(channelSection) as \(seriesIndex), \(channelIndex) from \(channelsPerSeries)")
+                    if totalIndex + channelsPerSeries[seriesIndex] <= channelSection {
+                        totalIndex += channelsPerSeries[seriesIndex]
+                        seriesIndex += 1
+                        continue
+                    } else {
+                        channelIndex = channelSection - totalIndex
+                        totalIndex += channelIndex
+                    }
+                }
+                LOGGER.trace("Found channelSection \(channelSection) as \(seriesIndex), \(channelIndex) from \(channelsPerSeries)")
+                
+                if data.count < seriesIndex || data[seriesIndex].timestamps.count == 0 || data[seriesIndex].channels.count < channelIndex || data[seriesIndex].channels[channelIndex].count == 0 {
                     // This can happen when new payloads make it so that the buffer for data to export for graphing are too small
-                    LOGGER.debug("No data to graph for \(channelSection): \(data.timestamps.count), \(data.channels.count) \(channelSection)")
+                    LOGGER.debug("No data to graph for \(channelSection)")
                     return cell
                 }
 
                 cell.lineWidth = lineWidth
                 cell.circleRadius = circleRadius
-                cell.timestamps = data.timestamps
-                cell.channel = data.channels[channelSection]
+                cell.timestamps = data[seriesIndex].timestamps
+                cell.channel = data[seriesIndex].channels[channelIndex]
                 LOGGER.trace("Updating channel \(channelSection) with [\(cell.timestamps.count), \(cell.channel.count)] values")
                 cell.dataLabel = "SAADC Samples (mV)"
                 cell.colorIndex = indexPath.section

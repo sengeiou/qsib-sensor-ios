@@ -353,25 +353,21 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         save(&state, peripheral)
     case let action as StartMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
-        if let numChannels = peripheral.signalChannels {
-            var holdInRam: Bool = false
-            switch peripheral.projectMode ?? "" {
-            case SHUNT_MONITOR_V1, MWV_PPG_V2, OXIMETER_V0:
-                holdInRam = false
-            case SKIN_HYDRATION_SENSOR_V2:
-                holdInRam = true
-            default:
-                LOGGER.warning("\(String(describing: peripheral.projectMode)) doesn't specify how to transition between data sets.")
-            }
-            peripheral.activeMeasurement = QSMeasurement(signalChannels: UInt8(numChannels), holdInRam: holdInRam)
-            peripheral.activeMeasurement?.state = .running
-            LOGGER.debug("Starting measurement ...")
-            startNewDataSet(for: peripheral)
-            peripheral.start()
-            save(&state, peripheral)
-        } else {
-            LOGGER.error("Number of channels not set. Cannot start measurement")
+        var holdInRam: Bool = false
+        switch peripheral.projectMode ?? "" {
+        case SHUNT_MONITOR_V1, MWV_PPG_V2, OXIMETER_V0:
+            holdInRam = false
+        case SKIN_HYDRATION_SENSOR_V2:
+            holdInRam = true
+        default:
+            LOGGER.warning("\(String(describing: peripheral.projectMode)) doesn't specify how to transition between data sets.")
         }
+        peripheral.activeMeasurement = QSMeasurement(holdInRam: holdInRam)
+        peripheral.activeMeasurement?.state = .running
+        LOGGER.debug("Starting measurement ...")
+        startNewDataSet(for: peripheral)
+        peripheral.start()
+        save(&state, peripheral)
     case let action as ResumeMeasurement:
         let peripheral = getPeripheral(&state, action.peripheral)
         peripheral.activeMeasurement?.state = .running
@@ -478,21 +474,39 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         let currentMode: String = state.defaultMode!
         let wtime = (2.78 * Float(1 + (state.mwv_ppg_v2_modes[currentMode]?.wcycles ?? 0)))
         let hz = 1000.0 / wtime
-        peripheral.activeMeasurement?.startNewDataSet(hz: hz)
+        
+        guard let measurement = peripheral.activeMeasurement else {
+            LOGGER.error("No measurement to start new data set")
+            return
+        }
+        
+        let params = measurement.getParams(hzMap: [0: hz, 1: 104], defaultHz: 1)
+        measurement.startNewDataSet(newParams: params)
     case OXIMETER_V0:
         let state = peripheral.getOrDefaultProject()
         let currentMode: String = state.defaultMode!
         let modeInfo = state.ox_v0_modes[currentMode]!
         let hz = modeInfo.effective_sample_hz!
-        peripheral.activeMeasurement?.startNewDataSet(hz: hz)
+        
+        guard let measurement = peripheral.activeMeasurement else {
+            LOGGER.error("No measurement to start new data set")
+            return
+        }
+        
+        let params = measurement.getParams(hzMap: [0: hz], defaultHz: hz)
+        measurement.startNewDataSet(newParams: params)
     case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
         let _ = peripheral.getOrDefaultProject()
-        if let hz = peripheral.signalHz {
-            peripheral.activeMeasurement?.startNewDataSet(hz: Float(hz))
-        } else {
-            peripheral.signalHz = 1
-            peripheral.activeMeasurement?.startNewDataSet(hz: Float(peripheral.signalHz!))
+        guard let measurement = peripheral.activeMeasurement else {
+            LOGGER.error("No measurement to start new data set")
+            return
         }
+        
+        peripheral.signalHz = peripheral.signalHz ?? 1
+        let hz = Float(peripheral.signalHz!)
+
+        let params = measurement.getParams(hzMap: [0: hz, 1: hz / 2], defaultHz: hz)
+        measurement.startNewDataSet(newParams: params)
     default:
         fatalError("Don't know how to start new dataset for \(String(describing: peripheral.projectMode))")
     }
