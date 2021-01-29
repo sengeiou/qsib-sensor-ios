@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 52;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -63,6 +63,7 @@
 		0695D0A325AFB3E700E12617 /* UIStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIStore.swift; sourceTree = "<group>"; };
 		069DCB3F25A8BEEF001B1247 /* EditorVCs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorVCs.swift; sourceTree = "<group>"; };
 		069DCB4325A8BF31001B1247 /* qsib_sensor_lib_rs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = qsib_sensor_lib_rs.h; sourceTree = "<group>"; };
+		06A6B52925C4A4D60065EB5B /* xcode-git-version.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = "xcode-git-version.sh"; sourceTree = "<group>"; };
 		06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBluetoothDelegate.swift; sourceTree = "<group>"; };
 		06A8B5302568339D00880CE8 /* QsibSensor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QsibSensor.entitlements; sourceTree = "<group>"; };
 		06A8B532256833BD00880CE8 /* QsibStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QsibStore.swift; sourceTree = "<group>"; };
@@ -149,6 +150,7 @@
 		069DCB4225A8BF1A001B1247 /* QsibShared */ = {
 			isa = PBXGroup;
 			children = (
+				06A6B52925C4A4D60065EB5B /* xcode-git-version.sh */,
 				069DCB4325A8BF31001B1247 /* qsib_sensor_lib_rs.h */,
 				068E706A2565AC2F00673E32 /* AppDelegate.swift */,
 				06A86AAA256830BC00B30115 /* AppBluetoothDelegate.swift */,
@@ -170,6 +172,7 @@
 				068E70632565AC2F00673E32 /* Sources */,
 				068E70642565AC2F00673E32 /* Frameworks */,
 				068E70652565AC2F00673E32 /* Resources */,
+				06A6B52825C4A49E0065EB5B /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -247,6 +250,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		06A6B52825C4A49E0065EB5B /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_FILE)",
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/Users/jwtrueb/Desktop/workspace/qsib-sensor/qsib-sensor-ios/QsibSensor/QsibSensor/QsibShared/xcode-git-version.sh\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		068E70632565AC2F00673E32 /* Sources */ = {
