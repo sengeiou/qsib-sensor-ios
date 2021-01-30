@@ -10,6 +10,7 @@ import CoreBluetooth
 import Toast
 
 
+public let PRESSURE_MONITOR_V1 = "Pressure Monitor V1"
 public let MWV_PPG_V2 = "Mutliwavelength PPG V2"
 public let SHUNT_MONITOR_V1 = "Shunt Monitor V1"
 public let SKIN_HYDRATION_SENSOR_V2 = "Skin Hydration V2"
@@ -51,6 +52,10 @@ public class OximeterV0CodableState: Codable {
     var effective_sample_hz: Float?
 }
 
+public class PressureMonitorV1CodableState: Codable {
+    var mode: String?
+}
+
 public class ProjectCodableState: Codable {
     var version: Int = 1
     var defaultMode: String?
@@ -59,6 +64,7 @@ public class ProjectCodableState: Codable {
     var sm_v1_modes: [String: ShuntMonitorV1CodableState] = [:]
     var shs_v2_modes: [String: SkinHydrationV2CodableState] = [:]
     var ox_v0_modes: [String: OximeterV0CodableState] = [:]
+    var pm_v1_modes: [String: PressureMonitorV1CodableState] = [:]
 }
 
 public class PersistedConfig: Codable {
@@ -272,6 +278,8 @@ public class QSPeripheral: Hashable {
             writeProjectControlForSkinHydrationV2()
         case OXIMETER_V0:
             writeProjectControlForOximeterV0()
+        case PRESSURE_MONITOR_V1:
+            writeProjectControlForPressureMonitorV0()
         default:
             fatalError("Unsupported peripheral type to use to start measurement \(String(describing: projectMode))")
         }
@@ -298,7 +306,7 @@ public class QSPeripheral: Hashable {
             writeControl(data: data)
         case SHUNT_MONITOR_V1:
             writeControl(data: Data([0x00]))
-        case SKIN_HYDRATION_SENSOR_V2:
+        case SKIN_HYDRATION_SENSOR_V2, PRESSURE_MONITOR_V1:
             writeControl(data: Data([0x01, 0x00]))
         case OXIMETER_V0:
             if let characteristic = self.characteristics[BIOMED_CHAR2_UUID.UUIDValue!] {
@@ -313,7 +321,7 @@ public class QSPeripheral: Hashable {
     
     public func turnOff() {
         switch self.projectMode ?? "" {
-        case MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2, OXIMETER_V0:
+        case MWV_PPG_V2, SKIN_HYDRATION_SENSOR_V2, OXIMETER_V0, PRESSURE_MONITOR_V1:
             pause()
         case SHUNT_MONITOR_V1:
             let data = Data(repeating: 0xFF, count: 23)
@@ -470,6 +478,20 @@ public class QSPeripheral: Hashable {
         }
     }
     
+    public func writeProjectControlForPressureMonitorV0() {
+        if let mode = projects[PRESSURE_MONITOR_V1]?.defaultMode,
+           let _modeInfo = projects[PRESSURE_MONITOR_V1]?.pm_v1_modes[mode] {
+
+            let data = Data([0x02, 0x01])
+
+            LOGGER.trace("Writing control message for \(PRESSURE_MONITOR_V1) :: \(data.hexEncodedString())")
+
+            writeControl(data: data)
+        } else {
+            fatalError("Project not configured properly")
+        }
+    }
+    
     public func getOrDefaultProject() -> ProjectCodableState {
         switch projectMode ?? "" {
         case MWV_PPG_V2:
@@ -608,6 +630,26 @@ public class QSPeripheral: Hashable {
             }
             
             return project
+        case PRESSURE_MONITOR_V1:
+            if projects[PRESSURE_MONITOR_V1] == nil {
+                let projectState = ProjectCodableState()
+                projectState.defaultMode = "MODE 0"
+                
+                let mode0State = PressureMonitorV1CodableState()
+                mode0State.mode = "MODE 0"
+                
+                projectState.pm_v1_modes[mode0State.mode!] = mode0State
+                
+                projects[PRESSURE_MONITOR_V1] = projectState
+            }
+            
+            guard let project = projects[projectMode ?? ""] else {
+                fatalError("Inconsistent app state for project \(self)")
+            }
+            
+            return project
+
+
 
         default:
             LOGGER.error("No implementation of default for \(projectMode ?? "")")
