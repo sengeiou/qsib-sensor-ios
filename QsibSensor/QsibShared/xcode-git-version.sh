@@ -12,6 +12,7 @@ set -o nounset
 # First, check for git in $PATH
 hash git 2>/dev/null || { echo >&2 "Git required, not installed.  Aborting build number update script."; exit 0; }
 
+
 # Alternatively, we could use Xcode's copy of the Git binary,
 # but old Xcodes don't have this.
 #GIT=$(xcrun -find git)
@@ -21,6 +22,10 @@ INFO_PLIST="${PROJECT_DIR}/QsibSensor/Info.plist"
 
 # Build version (closest-tag-or-branch "-" commits-since-tag "-" short-hash dirty-flag)
 BUILD_VERSION=$(git describe --tags --always)
+DIRTY_EXCEPT_INFOPLIST=$(git diff --name-only -- . ':(exclude)QsibSensor/Info.plist')
+if [ ! -z "$DIRTY_EXCEPT_INFOPLIST" ]; then
+    BUILD_VERSION="$BUILD_VERSION+"
+fi
 
 # Use the latest tag for short version (expected tag format "vn[.n[.n]]")
 # or if there are no tags, we make up version 0.0.<commit count>
@@ -50,7 +55,7 @@ fi
 
 # Bundle version (commits-on-master[-until-branch "." commits-on-branch])
 # Assumes that two release branches will not diverge from the same commit on master.
-if [ $(git rev-parse --abbrev-ref HEAD) = "master" ]; then
+if [ $(git rev-parse --abbrev-ref HEAD) = "master" ] || [ -z "$(git rev-list master..)" ]; then
     MASTER_COMMIT_COUNT=$(git rev-list --count HEAD)
     BRANCH_COMMIT_COUNT=0
     BUNDLE_VERSION="$MASTER_COMMIT_COUNT"

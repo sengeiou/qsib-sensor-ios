@@ -333,6 +333,9 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
             if peripheral.signalChannels == nil {
                 peripheral.signalChannels = 2
             }
+        case PRESSURE_MONITOR_V1:
+            peripheral.signalHz = 10
+            peripheral.signalChannels = 0
         default:
             fatalError("Not setting or checking project defaults for \(String(describing: peripheral.projectMode))")
         }
@@ -355,7 +358,7 @@ func qsibReducer(action: Action, state: QsibState?) -> QsibState {
         let peripheral = getPeripheral(&state, action.peripheral)
         var holdInRam: Bool = false
         switch peripheral.projectMode ?? "" {
-        case SHUNT_MONITOR_V1, MWV_PPG_V2, OXIMETER_V0:
+        case SHUNT_MONITOR_V1, MWV_PPG_V2, OXIMETER_V0, PRESSURE_MONITOR_V1:
             holdInRam = false
         case SKIN_HYDRATION_SENSOR_V2:
             holdInRam = true
@@ -495,7 +498,7 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         
         let params = measurement.getParams(hzMap: [0: hz], defaultHz: hz)
         measurement.startNewDataSet(newParams: params)
-    case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1:
+    case SKIN_HYDRATION_SENSOR_V2, SHUNT_MONITOR_V1, PRESSURE_MONITOR_V1:
         let _ = peripheral.getOrDefaultProject()
         guard let measurement = peripheral.activeMeasurement else {
             LOGGER.error("No measurement to start new data set")
@@ -505,7 +508,7 @@ func startNewDataSet(for peripheral: QSPeripheral) {
         peripheral.signalHz = peripheral.signalHz ?? 1
         let hz = Float(peripheral.signalHz!)
 
-        let params = measurement.getParams(hzMap: [0: hz, 1: hz / 2], defaultHz: hz)
+        let params = measurement.getParams(hzMap: [0: hz], defaultHz: hz)
         measurement.startNewDataSet(newParams: params)
     default:
         fatalError("Don't know how to start new dataset for \(String(describing: peripheral.projectMode))")
