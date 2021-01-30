@@ -20,9 +20,7 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
     var tablePaths: [IndexPath] = [
         // Qsib Sensor Central
         IndexPath(row: 0, section: 0), // Project Mode
-        IndexPath(row: 1, section: 0), // Signal Interpretation
-        IndexPath(row: 2, section: 0), // Signal Interpretation :: Sample Rate
-        IndexPath(row: 3, section: 0), // Signal Interpretation :: Channels
+        IndexPath(row: 1, section: 0), // Signal Interpretation :: Sample Rate
                 
         // Qsib Sensor Service Peripheral
         IndexPath(row: 0, section: 1), // Control
@@ -93,8 +91,6 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         let projectModeCell = tableView.cellForRow(at: indexPath)
                         projectModeCell?.detailTextLabel?.text = peripheral.projectMode ?? "Undefined"
                     case 1:
-                        break
-                    case 2:
                         let sampleRateCell = tableView.cellForRow(at: indexPath)
                         switch peripheral.projectMode ?? "" {
                         case MWV_PPG_V2, OXIMETER_V0:
@@ -102,19 +98,9 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         default:
                             sampleRateCell?.detailTextLabel?.text = peripheral.signalHz == nil ? "_ Hz" : "\(peripheral.signalHz!) Hz"
                         }
-                    case 3:
-                        let channelCell = tableView.cellForRow(at: indexPath)
-                        channelCell?.detailTextLabel?.text = peripheral.signalChannels == nil ? "_" : "\(peripheral.signalChannels!)"
                     default:
                         fatalError("Invalid row selection for \(indexPath)")
                     }
-//                case 1:
-//                    switch self.peripheral?.projectMode ?? "" {
-//                    case MWV_PPG_V2:
-//                        break
-//                    default:
-//                        break
-//                    }
                 case 1:
                     // QSIB Sensor Service Rows
                     switch indexPath.row {
@@ -222,15 +208,14 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
 
                 break
             case 1:
-                // not allowed
-                break
-            case 2:
                 // show hz picker
                 let storyboard = UIStoryboard(name: "Main", bundle: nil)
                 let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
                 editorVC.headerLabelText = "Sample Hz"
                 editorVC.options = (0...15).map { "\(1 << $0)" }
                 editorVC.options.append("\(256 * 14)")
+                editorVC.options.append("10")
+                editorVC.options = editorVC.options.sorted(by: { Int($0)! < Int($1)! })
                 if let signalHz = peripheral.signalHz {
                     editorVC.proposedValue = editorVC.options.firstIndex(of: "\(signalHz)") ?? 0
                     editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(signalHz)")
@@ -251,37 +236,6 @@ class DeviceInfoVC: UITableViewController, StoreSubscriber {
                         }
                     } else {
                         LOGGER.error("No peripheral available to update hz: \(selection)")
-                        return QsibTick()
-                    }
-                }
-                self.present(editorVC, animated: true)
-                break
-            case 3:
-                // show channel picker
-                let storyboard = UIStoryboard(name: "Main", bundle: nil)
-                let editorVC  = storyboard.instantiateViewController(withIdentifier: "pickerAttributeEditorVC") as! pickerAttributeEditorVC
-                editorVC.headerLabelText = "Channels"
-                editorVC.options = (1...8).map { "\($0)" }
-                if let signalChannels = peripheral.signalChannels {
-                    editorVC.proposedValue = editorVC.options.firstIndex(of: "\(signalChannels)") ?? 0
-                    editorVC.confirmedValue = editorVC.options.firstIndex(of: "\(signalChannels)")
-                } else {
-                    editorVC.proposedValue = 0
-                    editorVC.confirmedValue = nil
-                }
-                editorVC.predicate = { (i) in return true }
-                editorVC.actionFactory = { selectedIndex in
-                    let selection = editorVC.options[selectedIndex]
-                    if let peripheral = peripheral.cbp {
-                        LOGGER.info("Configured signal interpretation channels: \(selection)")
-                        if let channels = Int(selection) {
-                            return UpdateSignalChannels(peripheral: peripheral, channels: channels)
-                        } else {
-                            LOGGER.error("Could not parse channels input: \(selection)")
-                            return AppendToast(message: ToastMessage(message: "Cannot parse channels input", duration: TimeInterval(2), position: .center, title: "Input Error", image: nil, style: ToastStyle(), completion: nil))
-                        }
-                    } else {
-                        LOGGER.error("No peripheral available to update channels: \(selection)")
                         return QsibTick()
                     }
                 }

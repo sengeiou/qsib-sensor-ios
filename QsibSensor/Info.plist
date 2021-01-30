@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleBuildVersion</key>
-	<string>v1.1.0+</string>
+	<string>v1.1.0-1-g0b0e83b+</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>
@@ -17,9 +17,9 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.0</string>
+	<string>1.1.1d1</string>
 	<key>CFBundleVersion</key>
-	<string>84</string>
+	<string>84.1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
